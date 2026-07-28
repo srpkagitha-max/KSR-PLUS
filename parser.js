@@ -23,9 +23,19 @@ const ANSWER_WORDS = '(?:సరి(?:యైన|అయిన)\\s*)?(?:జవా�
 const ANSWER_LINE_RE = new RegExp(`^[${MARK_CHARS}]?\\s*(?:${ANSWER_WORDS})\\s*[:.\\-]?\\s*([A-D1-4]|ఎ|ఏ|బి|బీ|సి|సీ|డి|డీ)(?:\\s*[\\).:\\-]?\\s*(.*))?$`, 'iu');
 const WHATSAPP_PREFIX_RE = /^\s*\[?\d{1,2}[\/.-]\d{1,2}(?:[\/.-]\d{2,4})?[, ]+\d{1,2}:\d{2}(?:\s?[AP]M)?\]?\s*(?:-\s*)?[^:\n]{1,100}:\s*/iu;
 const CHAT_LABEL_RE = /^(?:Sravanthi\s+Sister)\s*:?\s*$/iu;
-const TEST_HEADING_RE = /^(?:grand\s*test|daily\s*test|dialy\s*test|డైలీ\s*టెస్ట్|గ్రాండ్\s*టెస్ట్)$/iu;
-const SUBJECT_HEADING_RE = /^(?:psychology|telugu|english|articles?|maths?|mathematics|biology|science|method|methodology|social|social\s*studies|evs?|environmental\s*studies|సైకాలజీ|తెలుగు|ఇంగ్లీష్|గణితం|జీవశాస్త్రం|సాంఘికం)$/iu;
-const SUBJECT_SENTINEL = '@@KSR_SUBJECT@@';
+const HEADING_RE = /^(?:grand\s*test|daily\s*test|dialy\s*test|psychology|telugu|english|articles?|maths?|mathematics|biology|science|method|methodology|social|social\s*studies|evs?|environmental\s*studies|డైలీ\s*టెస్ట్|గ్రాండ్\s*టెస్ట్|సైకాలజీ|తెలుగు|ఇంగ్లీష్|గణితం|జీవశాస్త్రం|సాంఘికం)$/iu;
+const TEST_TITLE_RE = /^(?:grand\s*test|daily\s*test|dialy\s*test|డైలీ\s*టెస్ట్|గ్రాండ్\s*టెస్ట్)$/iu;
+const SUBJECT_ALIASES = new Map([
+  ['psychology','Psychology'], ['సైకాలజీ','Psychology'],
+  ['telugu','Telugu'], ['తెలుగు','Telugu'],
+  ['english','English'], ['article','English'], ['articles','English'], ['ఇంగ్లీష్','English'],
+  ['math','Maths'], ['maths','Maths'], ['mathematics','Maths'], ['గణితం','Maths'],
+  ['biology','Biology'], ['జీవశాస్త్రం','Biology'],
+  ['science','Science'],
+  ['ev','EVS'], ['evs','EVS'], ['environmental studies','EVS'],
+  ['method','Method'], ['methodology','Method'],
+  ['social','Social'], ['social studies','Social'], ['సాంఘికం','Social']
+]);
 
 export function parseQuestions(raw, defaultSubject = 'General') {
   return parseQuestionsDetailed(raw, defaultSubject).questions;
@@ -41,16 +51,10 @@ export function parseQuestionsDetailed(raw, defaultSubject = 'General') {
   const lines = normalizeLines(raw);
   if (!lines.length) return { questions: [], diagnostics: emptyDiagnostics() };
 
-  const subjectSegments = segmentBySubject(lines, defaultSubject);
-  const blocksWithSubjects = [];
-  for (const segment of subjectSegments) {
-    const rawBlocks = splitQuestionBlocks(segment.lines);
-    const recovered = recoverOrphanQuestionBlocks(rawBlocks);
-    recovered.forEach(block => blocksWithSubjects.push({ block, subject: segment.subject }));
-  }
-  const blocks = blocksWithSubjects.map(item => item.block);
-  const parsed = blocksWithSubjects
-    .map((item, index) => parseBlock(item.block, index, item.subject || defaultSubject))
+  const rawBlocks = splitQuestionBlocks(lines, defaultSubject);
+  const blocks = recoverOrphanQuestionBlocks(rawBlocks);
+  const parsed = blocks
+    .map((block, index) => parseBlock(block.lines || block, index, block.subject || defaultSubject))
     // Never silently delete a detected question. Incomplete questions are kept
     // and clearly reported by the health diagnostics for review.
     .filter(q => q.question);
@@ -60,6 +64,7 @@ export function parseQuestionsDetailed(raw, defaultSubject = 'General') {
   const diagnostics = {
     inputLines: lines.length,
     detectedBlocks: blocks.length,
+    subjects: summarizeSubjects(parsed),
     parsedQuestions: parsed.length,
     missingOptions: healthReport.counts.missingOptions,
     missingAnswers: healthReport.counts.missingAnswer,
@@ -80,13 +85,14 @@ export function parseQuestionsDetailed(raw, defaultSubject = 'General') {
     confidence: healthReport.healthScore,
     healthScore: healthReport.healthScore,
     healthStatus: healthReport.status,
-    questionHealth: healthReport.questions
+    questionHealth: healthReport.questions,
+    subjectSummary: summarizeSubjects(parsed)
   };
   return { questions: parsed, diagnostics };
 }
 
 function emptyDiagnostics() {
-  return { inputLines: 0, detectedBlocks: 0, rawQuestions: 0, parsedQuestions: 0, missingOptions: 0, missingAnswers: 0, emptyQuestions: 0, brokenQuestions: 0, healthyQuestions: 0, warningQuestions: 0, criticalQuestions: 0, matchingQuestions: 0, assertionReasonQuestions: 0, statementQuestions: 0, standardQuestions: 0, duplicateQuestions: 0, uniqueQuestions: 0, duplicateGroups: 0, duplicateIndexes: [], confidence: 0, healthScore: 0, healthStatus: 'EMPTY', questionHealth: [] };
+  return { inputLines: 0, detectedBlocks: 0, rawQuestions: 0, parsedQuestions: 0, missingOptions: 0, missingAnswers: 0, emptyQuestions: 0, brokenQuestions: 0, healthyQuestions: 0, warningQuestions: 0, criticalQuestions: 0, matchingQuestions: 0, assertionReasonQuestions: 0, statementQuestions: 0, standardQuestions: 0, duplicateQuestions: 0, uniqueQuestions: 0, duplicateGroups: 0, duplicateIndexes: [], confidence: 0, healthScore: 0, healthStatus: 'EMPTY', questionHealth: [], subjects: [], subjectSummary: [] };
 }
 
 function normalizeLines(raw) {
@@ -109,8 +115,10 @@ function normalizeLines(raw) {
   text = text
     .replace(/\s+((?:ప్రశ్న|Question|Q)\s*\d{1,4}\s*(?:\.{1,3}|[:\)]))/giu, '\n$1')
     .replace(/([^\n])\s+(\d{1,4}\s*\.{1,3}\s*(?=[^0-9\s]))/gu, '$1\n$2')
+    .replace(/([^\n])(?=\(?(?:[A-D]|ఎ|ఏ|బి|బీ|సి|సీ|డి|డీ)\)?\s*[\):]\s*[^\n])/giu, '$1\n')
     .replace(/([^\n])\s+(\(?(?:[A-D]|ఎ|ఏ|బి|బీ|సి|సీ|డి|డీ)\)?\s*[\).:]\s*)/giu, '$1\n$2')
-    .replace(/([^\n])\s+((?:Answer|Ans|Correct\s*Answer|Right\s*Answer|జవాబు|సమాధానం)\s*[:.\-])/giu, '$1\n$2');
+    .replace(/([^\n])\s+((?:Answer|Ans|Correct\s*Answer|Right\s*Answer|జవాబు|సమాధానం)\s*[:.\-])/giu, '$1\n$2')
+    .replace(/((?:Answer|Ans|Correct\s*Answer|Right\s*Answer|జవాబు|సమాధానం)\s*[:.\-]?\s*[A-D1-4](?:\s*[).])?[^\n]*?)\s+(?=(?:ప్రశ్న|Question|Q)\s*\d{1,4}\s*[.):]|\d{1,4}\s*[.):]\s*[^0-9])/giu, '$1\n');
 
   const normalized = text.split('\n')
     .map(x => x.replace(/[ \t]+/g, ' ').trim())
@@ -119,7 +127,12 @@ function normalizeLines(raw) {
   const joined = [];
   for (let i = 0; i < normalized.length; i++) {
     const line = normalized[i];
-    if (isStandaloneMarker(line) && i + 1 < normalized.length && optionKeyFromLine(normalized[i + 1])) {
+    if (isStandaloneMarker(line) && i + 2 < normalized.length && /^(?:Answer|Ans|Correct\s*Answer|Right\s*Answer|జవాబు|సమాధానం)\s*[:.\-]?$/iu.test(normalized[i + 1]) && optionKeyFromLine(normalized[i + 2])) {
+      joined.push(`${line} ${normalized[i + 1]} ${normalized[i + 2]}`);
+      i += 2;
+    } else if (/^(?:Answer|Ans|Correct\s*Answer|Right\s*Answer|జవాబు|సమాధానం)\s*[:.\-]?$/iu.test(line) && i + 1 < normalized.length && optionKeyFromLine(normalized[i + 1])) {
+      joined.push(`${line} ${normalized[++i]}`);
+    } else if (isStandaloneMarker(line) && i + 1 < normalized.length && optionKeyFromLine(normalized[i + 1])) {
       joined.push(`${line} ${normalized[++i]}`);
     } else {
       joined.push(line);
@@ -129,14 +142,7 @@ function normalizeLines(raw) {
   return joined
     .map(cleanLeadingMarkerPlacement)
     .filter(Boolean)
-    .filter(line => !isChatNoise(line))
-    .map(line => {
-      const heading = normalizeHeading(line);
-      if (TEST_HEADING_RE.test(heading)) return '';
-      if (SUBJECT_HEADING_RE.test(heading)) return `${SUBJECT_SENTINEL}:${canonicalSubject(heading)}`;
-      return line;
-    })
-    .filter(Boolean);
+    .filter(line => !isChatNoise(line));
 }
 
 function isStandaloneMarker(line) {
@@ -155,47 +161,27 @@ function isChatNoise(line) {
   return CHAT_LABEL_RE.test(value) || /^<Media omitted>$/iu.test(value);
 }
 
-function normalizeHeading(line) {
-  return String(line || '')
-    .replace(/^#+\s*/, '')
-    .replace(/^\*+|\*+$/g, '')
-    .replace(/[:：]$/, '')
-    .trim();
+function cleanHeading(line) {
+  return String(line || '').replace(/^#+\s*/, '').replace(/^\*+|\*+$/g, '').replace(/[:：]$/, '').trim();
 }
 
-function canonicalSubject(value) {
-  const heading = normalizeHeading(value).toLocaleLowerCase('en-IN');
-  if (/psychology|సైకాలజీ/u.test(heading)) return 'Psychology';
-  if (/telugu|తెలుగు/u.test(heading)) return 'Telugu';
-  if (/english|article/u.test(heading) || /ఇంగ్లీష్/u.test(heading)) return 'English';
-  if (/math/u.test(heading) || /గణితం/u.test(heading)) return 'Maths';
-  if (/biology/u.test(heading) || /జీవశాస్త్రం/u.test(heading)) return 'Biology';
-  if (/science/u.test(heading)) return 'Science';
-  if (/method/u.test(heading)) return 'Method';
-  if (/social/u.test(heading) || /సాంఘికం/u.test(heading)) return 'Social';
-  if (/^evs?$|environmental/u.test(heading)) return 'EVS';
-  return normalizeHeading(value) || 'General';
+function isHeading(line) {
+  return HEADING_RE.test(cleanHeading(line));
 }
 
-function segmentBySubject(lines, defaultSubject) {
-  const segments = [];
-  let subject = defaultSubject || 'General';
-  let current = [];
-  const flush = () => {
-    if (current.length) segments.push({ subject, lines: current });
-    current = [];
-  };
+function subjectFromHeading(line) {
+  const clean = cleanHeading(line);
+  if (!isHeading(clean) || TEST_TITLE_RE.test(clean)) return '';
+  return SUBJECT_ALIASES.get(clean.toLocaleLowerCase('en-IN')) || clean;
+}
 
-  for (const line of lines) {
-    if (String(line).startsWith(`${SUBJECT_SENTINEL}:`)) {
-      flush();
-      subject = String(line).slice(SUBJECT_SENTINEL.length + 1).trim() || subject;
-    } else {
-      current.push(line);
-    }
-  }
-  flush();
-  return segments.length ? segments : [{ subject, lines: [] }];
+function summarizeSubjects(questions = []) {
+  const map = new Map();
+  questions.forEach(question => {
+    const subject = String(question?.subject || 'General').trim() || 'General';
+    map.set(subject, (map.get(subject) || 0) + 1);
+  });
+  return [...map.entries()].map(([subject, questions]) => ({ subject, questions, marks: questions }));
 }
 
 function questionStart(line) {
@@ -256,8 +242,11 @@ function recoverOrphanQuestionBlocks(blocks) {
   const recovered = [];
 
   for (let index = 0; index < blocks.length; index++) {
-    const current = blocks[index];
-    const next = blocks[index + 1];
+    const currentBlock = blocks[index];
+    const nextBlock = blocks[index + 1];
+    const current = currentBlock.lines || currentBlock;
+    const next = nextBlock ? (nextBlock.lines || nextBlock) : null;
+    const sameSubject = !nextBlock || !currentBlock.subject || !nextBlock.subject || currentBlock.subject === nextBlock.subject;
     const currentHasOptions = optionProgress(current) > 0;
     const nextHasOptions = next ? optionProgress(next) > 0 : false;
 
@@ -267,32 +256,43 @@ function recoverOrphanQuestionBlocks(blocks) {
     const looksCutOff = !/[?.!।:：]$/u.test(currentText.trim());
     const isSequentialFragment = Boolean(first && nextFirst && nextFirst.number === first.number + 1);
 
-    if (!currentHasOptions && next && nextHasOptions && looksCutOff && isSequentialFragment) {
-
+    if (!currentHasOptions && next && nextHasOptions && looksCutOff && isSequentialFragment && sameSubject) {
       const nextText = nextFirst?.text || next[0];
       const mergedFirst = `${first?.number || nextFirst?.number || recovered.length + 1}. ${currentText} ${nextText}`.trim();
-      recovered.push([mergedFirst, ...next.slice(1)]);
+      recovered.push({ subject: currentBlock.subject || nextBlock.subject, lines: [mergedFirst, ...next.slice(1)] });
       index++;
       continue;
     }
 
-    recovered.push(current);
+    recovered.push(currentBlock.lines ? currentBlock : { subject: 'General', lines: currentBlock });
   }
 
   return recovered;
 }
 
-function splitQuestionBlocks(lines) {
+function splitQuestionBlocks(lines, defaultSubject = 'General') {
   const blocks = [];
   let current = [];
+  let currentSubject = defaultSubject || 'General';
+
+  const pushCurrent = () => {
+    if (!current.length) return;
+    blocks.push({ subject: currentSubject, lines: current });
+    current = [];
+  };
 
   for (let index = 0; index < lines.length; index++) {
     const line = lines[index];
-    const start = questionStart(line);
+    if (isHeading(line)) {
+      const nextSubject = subjectFromHeading(line);
+      if (nextSubject) {
+        pushCurrent();
+        currentSubject = nextSubject;
+      }
+      continue;
+    }
 
-    // KSR PLUS strict mode: a question starts only with an explicit question
-    // number. Roman statements, list numbers and option lines are never treated
-    // as separate questions.
+    const start = questionStart(line);
     if (!current.length) {
       if (start) current = [line];
       continue;
@@ -307,22 +307,22 @@ function splitQuestionBlocks(lines) {
     const option = optionKeyFromLine(line);
     const expected = ['A', 'B', 'C', 'D'][progress] || '';
     const isExpectedNumericOption = Boolean(option && option.scheme === 'number' && option.key === expected && progress < 4);
-    const currentHasAnswer = current.some(isExplicitAnswerLine);
-    const currentIsCompleteQuestion = progress >= 2 || currentHasAnswer;
+    const currentHasAnswer = current.some(isExplicitAnswerLine) || current.some(hasCorrectAnswerMarker);
+    const currentIsCompleteQuestion = progress >= 4 || (progress >= 2 && currentHasAnswer);
 
-    // Numeric options such as 1), 2), 3), 4) belong to the current question.
-    // A numbered line before the current question has options is treated as a
-    // statement/list continuation, preventing 160 questions becoming 234.
+    // 1), 2), 3), 4) are numeric options until the current MCQ has four options.
+    // Roman statements never match questionStart. A numbered list before options
+    // remains part of the current question.
     if (isExpectedNumericOption || !currentIsCompleteQuestion) {
       current.push(line);
       continue;
     }
 
-    blocks.push(current);
+    pushCurrent();
     current = [line];
   }
 
-  if (current.length) blocks.push(current);
+  pushCurrent();
   return blocks;
 }
 
@@ -347,17 +347,6 @@ function parseBlock(lines, index, defaultSubject) {
 
     const option = optionKeyFromLine(line);
     if (option) {
-      const filledCount = ['A', 'B', 'C', 'D'].filter(key => options[key]).length;
-      const expectedKey = ['A', 'B', 'C', 'D'][filledCount] || '';
-      // A broken question line may accidentally begin with 1., 2., 3. or 4.
-      // Treat it as question continuation unless numeric options are arriving
-      // in the expected A→D sequence. This preserves cases such as:
-      // 24. 485.267 లో 'సహ / 25. సహస్రాంశం' ...
-      if (option.scheme === 'number' && option.key !== expectedKey && questionStart(line)) {
-        currentOption = null;
-        questionLines.push(formatQuestionLine(stripMarks(questionStart(line)?.text || line)));
-        continue;
-      }
       let text = option.text.trim();
       const prefixLength = Math.max(0, line.indexOf(option.text));
       const hasMark = hasCorrectAnswerMarker(text) || hasCorrectAnswerMarker(line.slice(0, prefixLength));
@@ -702,3 +691,4 @@ function mulberry32(seed) {
     return ((value ^ value >>> 14) >>> 0) / 4294967296;
   };
 }
+

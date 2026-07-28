@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ksr-plus-examos-parser-160-v2-20260728';
+const CACHE_NAME = 'ksr-plus-sprint1-universal-parser-v3-20260729';
 const APP_SHELL = [
   './offline.html', './manifest.json', './icon-192.png', './icon-512.png'
 ];
