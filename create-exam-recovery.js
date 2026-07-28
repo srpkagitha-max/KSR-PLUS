@@ -56,7 +56,12 @@ function fallbackEditableRender(result){
   if($('subjectQuestionCount'))$('subjectQuestionCount').value=result.questions.length;
   editor.dataset.open='1';
   editor.innerHTML=result.questions.map((q,i)=>`<div class="qcard"><div class="qhead"><b>Q${i+1}</b><div><button class="gray fallbackUp" data-i="${i}">↑</button><button class="gray fallbackDown" data-i="${i}">↓</button><button class="danger fallbackDelete" data-i="${i}">Delete</button></div></div><label>Question</label><textarea class="fallbackQ" data-i="${i}">${esc(q.question)}</textarea><div class="grid two">${(q.options||[]).map((o,j)=>`<div><label>${o.key}) Option</label><input class="fallbackOpt" data-i="${i}" data-j="${j}" value="${esc(o.text)}"></div>`).join('')}</div><label>Correct Answer</label><select class="fallbackAns" data-i="${i}">${['A','B','C','D'].map(k=>`<option ${q.answer===k?'selected':''}>${k}</option>`).join('')}</select></div>`).join('');
-  const health=$('health'); if(health)health.innerHTML=`<div class="examHealthTitleRow"><b>Parser Health Dashboard</b><span class="healthStatusBadge ready">READY</span></div><div class="health-grid"><span>Parsed Questions: <b>${result.questions.length}</b></span><span>Health Score: <b>${result.diagnostics.healthScore}%</b></span><span>Missing Answers: <b>${result.diagnostics.missingAnswers}</b></span><span>Critical Issues: <b>${result.diagnostics.criticalQuestions}</b></span></div>`;
+  if(window.__KSR_CREATE_EXAM_CORE__?.renderHealth){
+    window.__KSR_CREATE_EXAM_CORE__.renderHealth();
+  } else {
+    const health=$('health');
+    if(health) health.innerHTML=`<div class="examHealthTitleRow"><b>Parser Health Dashboard</b><span class="healthStatusBadge ${result.diagnostics.criticalQuestions ? 'critical' : 'healthy'}">${result.diagnostics.criticalQuestions ? 'NEEDS FIX' : 'READY'}</span></div><div class="health-grid"><span>Parsed Questions: <b>${result.questions.length}</b></span><span>Health Score: <b>${result.diagnostics.healthScore}%</b></span><span>Missing Answers: <b>${result.diagnostics.missingAnswers}</b></span><span>Critical Issues: <b>${result.diagnostics.criticalQuestions}</b></span></div>`;
+  }
   if($('parseBtn'))$('parseBtn').textContent='Questions Parsed ✅';
   notify(`${result.questions.length} questions detected ✅`,'ok');
 }
@@ -66,11 +71,7 @@ function bindAuthoritativeParser(){
   btn.addEventListener('click',event=>{
     // Main bridge is authoritative and keeps Save/Preview state in sync.
     if(window.__KSR_CREATE_EXAM_CORE__?.parseRawQuestions){
-      const editor=$('questionEditor');
-      if(editor?.dataset.open==='1') return; // main listener handles Save Edits & Close
-      event.preventDefault(); event.stopImmediatePropagation();
-      try{ window.__KSR_CREATE_EXAM_CORE__.parseRawQuestions(); }catch(error){notify(`Parser error: ${error.message}`);}
-      return;
+      return; // main admin-daily listener is authoritative; do not block it in capture phase
     }
     event.preventDefault(); event.stopImmediatePropagation();
     try{const result=parseQuestionsDetailed($('rawBits')?.value||'',$('subjectName')?.value||'General');if(!result.questions.length)return notify('Questions detect avvaledu. Format check cheyyandi.');fallbackEditableRender(result);}catch(error){notify(`Parser error: ${error.message}`);}

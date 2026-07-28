@@ -256,7 +256,8 @@ function recoverOrphanQuestionBlocks(blocks) {
     const looksCutOff = !/[?.!।:：]$/u.test(currentText.trim());
     const isSequentialFragment = Boolean(first && nextFirst && nextFirst.number === first.number + 1);
 
-    if (!currentHasOptions && next && nextHasOptions && looksCutOff && isSequentialFragment && sameSubject) {
+    const likelyNumberedFragment = currentText.length < 180 || looksCutOff;
+    if (!currentHasOptions && next && nextHasOptions && likelyNumberedFragment && isSequentialFragment && sameSubject) {
       const nextText = nextFirst?.text || next[0];
       const mergedFirst = `${first?.number || nextFirst?.number || recovered.length + 1}. ${currentText} ${nextText}`.trim();
       recovered.push({ subject: currentBlock.subject || nextBlock.subject, lines: [mergedFirst, ...next.slice(1)] });

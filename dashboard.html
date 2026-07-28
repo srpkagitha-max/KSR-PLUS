@@ -1,7 +1,7 @@
 <!doctype html><html lang="te"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
-<meta http-equiv="Expires" content="0"><title>KSR ➕ Admin</title><link rel="stylesheet" href="style.css?v=20260729-sprint5-final-validation-v1">
+<meta http-equiv="Expires" content="0"><title>KSR ➕ Admin</title><link rel="stylesheet" href="style.css?v=20260729-sprint7-parser-integration-v1">
 <link rel="manifest" href="./manifest.json">
 <meta name="theme-color" content="#064a86">
 <meta name="mobile-web-app-capable" content="yes">
@@ -72,17 +72,20 @@
     <button class="gray" id="saveToBankBtn" type="button">💾 Save All Subjects to Bank</button>
   </div>
 </div>
+<div id="health" class="health-box parserHealthDashboard"></div>
+<div id="questionEditor"></div>
 <div class="action-row finalExamActions"><button class="orange" id="previewBtn">Student Exam Preview</button><button class="green" id="saveGenerateBtn">Review Final Exam</button></div>
 <div id="finalValidationModal" class="finalValidationModal" hidden>
   <div class="finalValidationBackdrop" data-close-final-validation></div>
   <section class="finalValidationDialog" role="dialog" aria-modal="true" aria-labelledby="finalValidationTitle">
     <div class="finalValidationHeader"><div><h2 id="finalValidationTitle">Final Exam Validation</h2><p>Save mundu exam details anni verify cheyyandi.</p></div><button type="button" class="gray" id="closeFinalValidationBtn">✕</button></div>
     <div id="finalValidationContent"></div>
+    <div id="finalSaveProgress" class="finalSaveProgress" hidden></div>
     <div class="finalValidationActions"><button type="button" class="gray" id="editFinalValidationBtn">Back to Edit</button><button type="button" class="green" id="confirmFinalSaveBtn">Confirm Save + Generate Codes</button></div>
   </section>
 </div>
 <div id="bankPicker" class="card bankPicker" hidden><div class="qhead"><div><h3>Smart Add from Question Bank</h3><p class="small">Subject, class, lesson లేదా keyword batti questions select cheyyandi.</p></div><button type="button" class="gray" id="closeBankBtn">Close</button></div><div class="grid four"><input id="bankSearchText" placeholder="Keyword / Question ID"><input id="bankSubjectFilter" placeholder="Subject"><input id="bankClassFilter" placeholder="Class / Category"><input id="bankLessonFilter" placeholder="Lesson / Topic"></div><div class="action-row"><button type="button" id="loadBankBtn">Load Questions</button><button type="button" class="gray" id="selectAllBankBtn">Select All</button><button type="button" class="gray" id="clearBankSelectionBtn">Clear</button><button type="button" class="green" id="addSelectedBankBtn">Add Selected to Exam</button></div><div id="bankPickerStats" class="health-box"></div><div id="bankPickerList"><p class="small">Filters enter chesi Load Questions nokkandi.</p></div></div>
-<div id="health" class="health-box"></div><div id="questionEditor"></div></div>
+</div>
 <div class="card" id="previewCard" hidden><h2>Student Exam Preview</h2><p class="small">ఇది preview మాత్రమే. Result save కాదు.</p><div class="preview-exam"><div class="preview-head"><b id="previewTitle">Exam Preview</b><span id="previewTimer">00:00</span></div><div id="previewContent"></div><div id="previewNav" class="palette"></div></div></div>
 </section>
 
@@ -113,7 +116,7 @@
  document.querySelectorAll('.backHomeBtn').forEach(b=>b.addEventListener('click',()=>{panels.forEach(p=>p.hidden=true);home.hidden=false;window.scrollTo({top:0,behavior:'smooth'});}));
 })();
 </script>
-<script type="module" src="admin-daily.js?v=20260729-sprint5-final-validation-v1"></script>
-<script type="module" src="create-exam-recovery.js?v=20260727-create-exam-core-v4"></script>
-<script src="./pwa-register.js?v=20260727-create-exam-core-v4"></script>
+<script type="module" src="admin-daily.js?v=20260729-sprint7-parser-integration-v1"></script>
+<script type="module" src="create-exam-recovery.js?v=20260729-sprint7-parser-integration-v1"></script>
+<script src="./pwa-register.js?v=20260729-sprint7-parser-integration-v1"></script>
 </body></html>

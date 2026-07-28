@@ -104,6 +104,8 @@ const LAST_GENERATED_CODES_KEY = 'ksrLastGeneratedCodesV1';
 
 // Create Exam Core Bridge V3: available even if a later optional enterprise panel fails.
 window.__KSR_CREATE_EXAM_CORE__ = {
+  addNewSubjectParser,
+  renderHealth,
   parseRawQuestions() {
     const raw = $('rawBits')?.value || '';
     const subject = cleanSubjectName($('subjectName')?.value || 'General');
@@ -1046,15 +1048,23 @@ function restoreDraft(notify = true) {
   }
 }
 
-$('addSubjectBtn')?.addEventListener('click', () => {
+function addNewSubjectParser() {
   sync();
   commitCurrentSubject();
   subjects.push({ name: `Subject ${subjects.length + 1}`, rawBits: '', questions: [] });
   activeSubjectIndex = subjects.length - 1;
+  questions = [];
   loadActiveSubject();
+  if ($('rawBits')) $('rawBits').value = '';
+  if ($('subjectName')) {
+    $('subjectName').focus();
+    $('subjectName').select();
+  }
   saveDraft();
-  flash('New subject added ✅');
-});
+  flash('New subject parser added ✅');
+}
+
+$('addSubjectBtn')?.addEventListener('click', addNewSubjectParser);
 
 $('saveSubjectBtn')?.addEventListener('click', async () => {
   try {
@@ -2379,6 +2389,9 @@ function closeFinalValidation() {
 
 function openFinalValidation() {
   const data = getFinalValidationSnapshot();
+  if ($('finalValidationContent')) $('finalValidationContent').hidden = false;
+  if ($('finalSaveProgress')) { $('finalSaveProgress').hidden = true; $('finalSaveProgress').innerHTML = ''; }
+  if ($('editFinalValidationBtn')) $('editFinalValidationBtn').hidden = false;
   const failed = data.checks.filter(check => !check.ok);
   const subjectTable = data.subjectRows.length ? data.subjectRows.map(row => `
     <tr class="${row.status === 'Ready' ? 'ready' : 'hasIssues'}"><td>${esc(row.name)}</td><td>${row.questions}</td><td>${row.marks}</td><td>${row.issues}</td><td><b>${row.status}</b></td></tr>`).join('') : '<tr><td colspan="5">Subjects levu.</td></tr>';
@@ -2416,11 +2429,82 @@ document.querySelectorAll('[data-close-final-validation]').forEach(element => el
 
 /* =========================================================
    SAVE EXAM + GENERATE CODES
-   Existing Exam ID unte confirmation vastundi.
-   OK press chesthe existing exam update avutundi.
+   SPRINT 6: safe lock, progress, rollback and final READY state.
 ========================================================= */
 
+let finalSaveInProgress = false;
+
+function finalSaveFingerprint(data = getFinalValidationSnapshot()) {
+  return JSON.stringify({
+    instituteId: data.instituteId, batchId: data.batchId, examId: data.examId,
+    start: data.start, end: data.end, questions: data.allQuestions.map(q => ({
+      subject: q.subject || '', question: q.question || '', answer: q.answer || '',
+      options: (q.options || []).map(o => `${o.key || ''}:${o.text || ''}`)
+    }))
+  });
+}
+
+function renderFinalSaveProgress(stage, message = '', detail = '') {
+  const box = $('finalSaveProgress');
+  if (!box) return;
+  const stages = [
+    ['validate','Final validation'], ['backup','Safety backup'], ['prepare','Prepare exam and codes'],
+    ['database','Save exam data'], ['codes','Generate student codes'], ['verify','Verify saved exam']
+  ];
+  const order = stages.map(item => item[0]);
+  const current = Math.max(0, order.indexOf(stage));
+  const failed = stage === 'failed';
+  const success = stage === 'success';
+  const pct = success ? 100 : failed ? Math.max(8, current * 18) : Math.min(96, (current + 1) * 16);
+  box.hidden = false;
+  box.className = `finalSaveProgress ${failed ? 'failed' : success ? 'success' : 'running'}`;
+  box.innerHTML = `
+    <div class="finalSaveProgressHead"><b>${success ? 'Exam Ready ✅' : failed ? 'Safe Save Stopped' : 'Saving Exam Safely…'}</b><span>${pct}%</span></div>
+    <div class="finalSaveProgressBar"><i style="width:${pct}%"></i></div>
+    <div class="finalSaveSteps">${stages.map((item,index) => {
+      const cls = success || index < current ? 'done' : failed && index === current ? 'failed' : index === current ? 'active' : '';
+      const icon = success || index < current ? '✅' : failed && index === current ? '⛔' : index === current ? '⏳' : '○';
+      return `<div class="finalSaveStep ${cls}"><span>${icon}</span><span>${esc(item[1])}</span></div>`;
+    }).join('')}</div>
+    ${message ? `<div class="${failed ? 'finalSaveFailure' : success ? 'finalSaveSuccess' : 'small'}">${esc(message)}</div>` : ''}
+    ${detail ? `<p class="small">${esc(detail)}</p>` : ''}`;
+}
+
+async function deleteAccessCodesBySaveRun(saveRunId) {
+  if (!saveRunId) return;
+  const snap = await getDocs(query(collection(db, 'studentAccess'), where('saveRunId', '==', saveRunId)));
+  const docs = snap.docs;
+  for (let i = 0; i < docs.length; i += 450) {
+    const wb = writeBatch(db);
+    docs.slice(i, i + 450).forEach(item => wb.delete(item.ref));
+    await wb.commit();
+  }
+}
+
+async function cleanupOldUnusedCodes(examPublicId, currentSaveRunId) {
+  const snap = await getDocs(query(collection(db, 'studentAccess'), where('examId', '==', examPublicId)));
+  const oldUnused = snap.docs.filter(item => {
+    const data = item.data() || {};
+    return data.status === 'unused' && data.saveRunId !== currentSaveRunId;
+  });
+  for (let i = 0; i < oldUnused.length; i += 450) {
+    const wb = writeBatch(db);
+    oldUnused.slice(i, i + 450).forEach(item => wb.delete(item.ref));
+    await wb.commit();
+  }
+}
+
+async function restoreExamAfterFailedSave(examRef, questionsRef, oldExamSnapshot, oldQuestionsSnapshot) {
+  if (oldExamSnapshot.exists()) await setDoc(examRef, oldExamSnapshot.data(), { merge:false });
+  else await deleteDoc(examRef).catch(() => {});
+  if (oldQuestionsSnapshot.exists()) await setDoc(questionsRef, oldQuestionsSnapshot.data(), { merge:false });
+  else await deleteDoc(questionsRef).catch(() => {});
+}
+
 async function performFinalExamSave() {
+  if (finalSaveInProgress) return show('Exam save already running. Please wait.', 'err');
+  const initialValidation = getFinalValidationSnapshot();
+  const initialFingerprint = finalSaveFingerprint(initialValidation);
   const allQuestions = getAllQuestions();
 
   const instituteId = $('instituteId').value;
@@ -2485,6 +2569,7 @@ async function performFinalExamSave() {
     );
   }
 
+  renderFinalSaveProgress('validate', 'All final checks passed.');
   const selectedBatch = batches.find(batch => batch.id === batchId);
   if (!selectedBatch || selectedBatch.instituteId !== instituteId) {
     return show('Selected Batch ee Institute ki sambandhinchindi kaadu. Institute/Batch malli select cheyyandi.', 'err');
@@ -2496,18 +2581,28 @@ async function performFinalExamSave() {
   if (freshBatchId !== batchId || freshInstituteId !== instituteId) {
     return show('Institute/Batch selection marindi. Malli Save + Generate Codes nokkandi.', 'err');
   }
+  const freshValidation = getFinalValidationSnapshot();
+  if (!freshValidation.ready || finalSaveFingerprint(freshValidation) !== initialFingerprint) {
+    openFinalValidation();
+    return show('Exam details save mundu marayi. Final review malli cheyyandi.', 'err');
+  }
 
-  createAutomaticLocalBackup('Automatic backup before exam save');
+  finalSaveInProgress = true;
+  document.body.classList.add('examSaveLocked');
   $('saveGenerateBtn').disabled = true;
+  $('confirmFinalSaveBtn').disabled = true;
+  renderFinalSaveProgress('backup', 'Local safety backup created.');
+  createAutomaticLocalBackup('Automatic backup before exam save');
+
+  const saveRunId = `${examPublicId}_${Date.now()}_${Math.random().toString(36).slice(2,8)}`;
+  let examRef = null, questionsRef = null, oldExamSnapshot = null, oldQuestionsSnapshot = null;
 
   try {
-    const examRef = doc(
-      db,
-      'exams',
-      examPublicId
-    );
-
-    const oldExamSnapshot = await getDoc(examRef);
+    renderFinalSaveProgress('prepare', 'Preparing unique codes and version snapshot.');
+    examRef = doc(db, 'exams', examPublicId);
+    questionsRef = doc(db, 'examQuestions', examPublicId);
+    oldExamSnapshot = await getDoc(examRef);
+    oldQuestionsSnapshot = await getDoc(questionsRef);
     const oldExamData = oldExamSnapshot.exists() ? oldExamSnapshot.data() : null;
     const previousVersion = oldExamSnapshot.exists() ? Number(oldExamData?.version || 1) : 0;
     const nextVersion = oldExamSnapshot.exists() ? previousVersion + 1 : 1;
@@ -2561,6 +2656,7 @@ async function performFinalExamSave() {
       }, { merge: false });
     }
 
+    renderFinalSaveProgress('database', 'Saving exam metadata and questions.');
     await setDoc(
       examRef,
       {
@@ -2615,7 +2711,9 @@ async function performFinalExamSave() {
           existingCreatedAt ||
           serverTimestamp(),
 
-        updatedAt: serverTimestamp()
+        updatedAt: serverTimestamp(),
+        saveState: 'saving',
+        saveRunId
       },
       {
         merge: true
@@ -2623,18 +2721,15 @@ async function performFinalExamSave() {
     );
 
     await setDoc(
-      doc(
-        db,
-        'examQuestions',
-        examPublicId
-      ),
+      questionsRef,
       {
         examId: examPublicId,
         version: nextVersion,
         questions: allQuestions,
         subjects: subjects.map((subject, subjectIndex) => ({ name: subject.name, order: subjectIndex, questionCount: (subject.questions || []).length })),
         questionCount: allQuestions.length,
-        updatedAt: serverTimestamp()
+        updatedAt: serverTimestamp(),
+        saveRunId
       },
       {
         merge: true
@@ -2650,6 +2745,7 @@ async function performFinalExamSave() {
       Kotha codes generate chestundi.
     */
 
+    renderFinalSaveProgress('codes', 'Generating secure student and backup codes.');
     lastCodes = [];
 
     const selectedStudents = batchStudents.map(student => ({ ...student, isBackup: false }));
@@ -2720,6 +2816,7 @@ async function performFinalExamSave() {
 
           mobile: '',
           isBackup: Boolean(student.isBackup),
+          saveRunId,
 
           createdAt: serverTimestamp()
         });
@@ -2739,6 +2836,18 @@ async function performFinalExamSave() {
 
       await batch.commit();
     }
+
+    renderFinalSaveProgress('verify', 'Verifying saved question count and codes.');
+    const verifyQuestions = await getDoc(questionsRef);
+    const verifyCodeSnapshot = await getDocs(query(collection(db, 'studentAccess'), where('saveRunId', '==', saveRunId)));
+    if (!verifyQuestions.exists() || Number(verifyQuestions.data()?.questionCount || 0) !== allQuestions.length) {
+      throw new Error('Saved question count verification failed.');
+    }
+    if (verifyCodeSnapshot.size !== selectedStudents.length) {
+      throw new Error(`Code verification failed: expected ${selectedStudents.length}, saved ${verifyCodeSnapshot.size}.`);
+    }
+    await updateDoc(examRef, { saveState:'ready', saveCompletedAt:serverTimestamp(), generatedCodeCount:selectedStudents.length });
+    await cleanupOldUnusedCodes(examPublicId, saveRunId);
 
     lastExam = {
       docId: examPublicId,
@@ -2792,6 +2901,7 @@ async function performFinalExamSave() {
 
     localStorage.removeItem(DRAFT_KEY);
 
+    renderFinalSaveProgress('success', `Exam ready. ${lastCodes.length} codes generated safely.`);
     if (isUpdatingExistingExam) {
       flash(
         `Exam updated to v${nextVersion} ✅ ${lastCodes.length} codes generated.`
@@ -2811,13 +2921,23 @@ async function performFinalExamSave() {
     }
   } catch (error) {
     console.error('Exam save error:', error);
-
-    show(
-      `Exam save avvaledu: ${error.message}`,
-      'err'
-    );
+    renderFinalSaveProgress('failed', `Exam save avvaledu: ${error.message}`, 'Partial data rollback chestunnam. Existing exam safe ga restore avutundi.');
+    try {
+      await deleteAccessCodesBySaveRun(saveRunId);
+      if (examRef && questionsRef && oldExamSnapshot && oldQuestionsSnapshot) {
+        await restoreExamAfterFailedSave(examRef, questionsRef, oldExamSnapshot, oldQuestionsSnapshot);
+      }
+    } catch (rollbackError) {
+      console.error('Rollback error:', rollbackError);
+      show(`Save failed. Rollback kuda complete kaaledu: ${rollbackError.message}`, 'err');
+      return;
+    }
+    show(`Exam save avvaledu: ${error.message}. Previous data restore అయింది.`, 'err');
   } finally {
+    finalSaveInProgress = false;
+    document.body.classList.remove('examSaveLocked');
     $('saveGenerateBtn').disabled = false;
+    $('confirmFinalSaveBtn').disabled = !getFinalValidationSnapshot().ready;
     renderHealth();
   }
 }
@@ -2828,8 +2948,12 @@ $('confirmFinalSaveBtn')?.addEventListener('click', async () => {
     openFinalValidation();
     return show('Final validation checks complete cheyyandi.', 'err');
   }
-  closeFinalValidation();
+  $('finalValidationContent').hidden = true;
+  $('editFinalValidationBtn').hidden = true;
+  $('closeFinalValidationBtn').disabled = true;
   await performFinalExamSave();
+  $('closeFinalValidationBtn').disabled = false;
+  $('editFinalValidationBtn').hidden = false;
 });
 
 function formatDateTime(value) {
