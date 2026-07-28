@@ -1,0 +1,193 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0"><title>KSR ➕ Exam</title><link rel="stylesheet" href="style.css?v=20260726-2">
+<link rel="manifest" href="./manifest.json">
+<meta name="theme-color" content="#064a86">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="KSR ➕">
+<link rel="apple-touch-icon" href="./icon-192.png">
+</head>
+<body class="examBody">
+<div id="msg"></div>
+<div class="dscExam">
+  <header class="dscHeader compactExamHeader">
+    <b id="instName">KSR Institute</b>
+    <div class="cornerTimer" aria-label="Time left">⏱ <b id="clock">00:00:00</b></div>
+    <span id="examTitle" hidden></span>
+    <span id="studentName" hidden></span><span id="hallTicket" hidden></span>
+  </header>
+  <div class="subjectTabs" id="subjectTabs"></div>
+  <div class="examStatusStrip">
+    <div><span>Subject Progress</span><b id="subjectProgressText">0 / 0</b></div>
+    <div class="subjectProgressTrack"><span id="subjectProgressBar"></span></div>
+    <div><span>Remaining</span><b id="subjectRemaining">0</b></div>
+    <div class="saveState" id="saveState">Saved locally</div>
+  </div>
+  <main class="dscMain">
+    <section class="questionPanel">
+      <div class="qHead"><b id="qNo">Question 1</b><span class="qTotal"><b id="progressText">1 / 1</b></span><span id="qSubject" class="pill">Subject</span></div><div class="examProgress"><span id="progressBar"></span></div><span id="totalQuestions" hidden>0</span>
+      <div id="qbox" class="questionText"></div>
+      <div id="options" class="optionsGrid"></div>
+      <div class="controls examControlLayout">
+        <div class="controlPrimaryRow">
+          <button id="review" class="purple">Mark for Review</button>
+          <button id="next" class="green">Save & Next →</button>
+        </div>
+        <div class="controlSecondaryRow">
+          <button id="prev" class="gray">← Previous</button>
+          <button id="clear" class="orange">Clear Response</button>
+          <button id="submit" class="danger">Submit Test</button>
+        </div>
+      </div>
+    </section>
+    <aside class="palettePanel">
+      <h3>Question Palette</h3>
+      <div class="legend"><span><i class="dot ans"></i>Answered</span><span><i class="dot vis"></i>Visited</span><span><i class="dot not"></i>Not Visited</span><span><i class="dot rev"></i>Review</span><span><i class="dot cur"></i>Current</span></div>
+      <div id="palette" class="palette"></div>
+      <div class="summary"><p>Answered: <b id="answeredCount">0</b></p><p>Visited: <b id="visitedCount">0</b></p><p>Review: <b id="reviewCount">0</b></p><p>Not Visited: <b id="notCount">0</b></p></div>
+      <button id="fullscreen" class="blueBtn">Enter Full Screen</button>
+    </aside>
+  </main>
+</div>
+<div id="submitModal" class="modalOverlay" hidden><div class="modalCard"><h2 id="modalTitle">Confirm Submission</h2><p id="modalText"></p><div class="modalActions"><button id="continueExam" class="blueBtn">Continue Exam</button><button id="confirmSubmit" class="danger">Yes, Submit Exam</button></div></div></div>
+<div id="timeupModal" class="modalOverlay" hidden><div class="modalCard"><h2>సమయం ముగిసింది</h2><p>మీ సమాధానాలు సేవ్ చేసి పరీక్ష ఆటోమేటిక్‌గా Submit అవుతోంది.</p></div></div>
+<div id="pauseModal" class="modalOverlay" hidden><div class="modalCard"><h2>Exam Paused</h2><p>Admin మీ పరీక్షను తాత్కాలికంగా Pause చేశారు.<br>Resume చేసిన వెంటనే పరీక్ష కొనసాగుతుంది.</p><div class="connectionStatus" id="connectionStatus">Connected</div></div></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script type="module">
+import{db,doc,getDoc,setDoc,serverTimestamp,onSnapshot,$,show,esc}from'./app.js';
+import{studentShuffle}from'./parser.js';
+let qs=[],idx=0,ans={},review={},visited={},spent={},qStart=Date.now(),exam={},accessData=null,timerInt=null,remaining=0,submitting=false,saveDebounce=null,autoSaveInt=null,cloudSaveTimer=null,controlUnsub=null,isPaused=false,lastExtraTime=0,lastCloudSavedAt=0;
+const SESSION_PREFIX='ksrExamSession:';
+const p=new URL(location.href).searchParams;const examId=p.get('id'),accessId=p.get('access')||'',studentCode=(p.get('studentCode')||'').trim().toUpperCase();let name='',phone='',hall='';
+function fmt(sec){sec=Math.max(0,Math.floor(sec));let h=Math.floor(sec/3600),m=Math.floor((sec%3600)/60),s=sec%60;return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`}
+function fmtMini(sec){sec=Math.max(0,Math.floor(sec));let m=Math.floor(sec/60),s=sec%60;return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`}
+async function init(){try{if(!accessId||!studentCode)return show('Secure student access missing. Student login nundi open cheyyandi.','err');const accessDoc=await getDoc(doc(db,'studentAccess',accessId));if(!accessDoc.exists())return show('Student access record not found','err');accessData=accessDoc.data();if((accessData.code||'').toUpperCase()!==studentCode||accessData.examId!==examId)return show('Invalid Student Code / Exam access','err');if(accessData.status==='completed')return show('Ee student code tho exam already completed.','err');name=accessData.studentName||'Student';phone=accessData.mobile||accessData.hallTicket||accessId;hall=accessData.hallTicket||phone;const ex=await getDoc(doc(db,'exams',examId));const qd=await getDoc(doc(db,'examQuestions',examId));if(!ex.exists()||!qd.exists())return show('Exam/questions not found','err');exam=ex.data();await setDoc(doc(db,'studentAccess',accessId),{status:'inProgress',startedAt:accessData.startedAt||serverTimestamp(),lastLoginAt:serverTimestamp()},{merge:true});let raw=qd.data().questions||[];qs=applyQuestionShuffle(raw, exam, phone||name||'student');if(exam.shuffleOptions) qs=qs.map((q,i)=>shuffleQuestionOptions(q, (exam.studentRandomization==='different'?(phone||name):examId)+(q.id||i)));$('instName').textContent=exam.instituteName||exam.instituteCode||'KSR';$('examTitle').textContent=exam.title||'DSC Grand Test';$('studentName').textContent=name;$('hallTicket').textContent='Hall Ticket: '+hall;remaining=Math.max(1,Number(exam.secondsPerQuestion||0)*raw.length||Number(exam.totalMinutes||30)*60);await restoreCloudSession();restoreSession();renderSubjects();render();startTimers();startControlListener();queueCloudSave(true);}catch(e){show(e.message,'err')}}
+function saveTime(){let now=Date.now();spent[idx]=(spent[idx]||0)+Math.max(0,Math.round((now-qStart)/1000));qStart=now;scheduleSessionSave();}
+function sessionKey(){return SESSION_PREFIX+examId+':'+phone;}
+function scheduleSessionSave(){clearTimeout(saveDebounce);saveDebounce=setTimeout(()=>{saveSession();queueCloudSave(false)},120);}
+function saveSession(){try{localStorage.setItem(sessionKey(),JSON.stringify({ans,review,visited,spent,idx,remaining,savedAt:Date.now()}));const el=$('saveState');if(el){el.textContent=navigator.onLine?'Saved':'Saved offline';el.classList.add('savedPulse');setTimeout(()=>el.classList.remove('savedPulse'),500)}}catch(e){}}
+function compactMap(obj){const out={};Object.keys(obj||{}).forEach(k=>{if(obj[k]!==undefined&&obj[k]!==false&&obj[k]!==null&&obj[k]!=='' )out[k]=obj[k]});return out}
+function queueCloudSave(immediate=false){clearTimeout(cloudSaveTimer);cloudSaveTimer=setTimeout(saveCloudSession,immediate?0:2500)}
+async function saveCloudSession(){if(submitting||!navigator.onLine||!accessId)return;try{lastCloudSavedAt=Date.now();await setDoc(doc(db,'studentAccess',accessId),{cloudAnswers:compactMap(ans),cloudReview:compactMap(review),currentQuestion:idx+1,totalQuestions:qs.length,answeredCount:Object.keys(ans).length,unansweredCount:Math.max(0,qs.length-Object.keys(ans).length),remainingSeconds:Math.max(0,remaining),lastActivityAt:serverTimestamp(),connectionState:'online',sessionVersion:2},{merge:true});const el=$('saveState');if(el)el.textContent='Cloud saved';}catch(e){const el=$('saveState');if(el)el.textContent='Offline backup safe'}}
+async function restoreCloudSession(){try{const snap=await getDoc(doc(db,'studentAccess',accessId));if(!snap.exists())return;const x=snap.data();lastExtraTime=Number(x.extraTimeSeconds||0);if(x.cloudAnswers&&typeof x.cloudAnswers==='object')ans=x.cloudAnswers;if(x.cloudReview&&typeof x.cloudReview==='object')review=x.cloudReview;if(Number(x.currentQuestion)>0)idx=Math.min(qs.length-1,Number(x.currentQuestion)-1);if(Number(x.remainingSeconds)>0)remaining=Math.min(remaining,Number(x.remainingSeconds));}catch(e){}}
+function restoreSession(){try{const raw=localStorage.getItem(sessionKey());if(!raw)return;const x=JSON.parse(raw);if(x&&typeof x==='object'){ans=x.ans||{};review=x.review||{};visited=x.visited||{};spent=x.spent||{};idx=Math.min(Math.max(0,Number(x.idx||0)),Math.max(0,qs.length-1));if(Number.isFinite(Number(x.remaining))&&Number(x.remaining)>0)remaining=Math.min(remaining,Number(x.remaining));show('Previous exam session restored ✅','warn');}}catch(e){}}
+function startTimers(){clearInterval(timerInt);clearInterval(autoSaveInt);$('clock').textContent=fmt(remaining);autoSaveInt=setInterval(()=>{saveSession();queueCloudSave(true)},20000);timerInt=setInterval(()=>{if(isPaused)return;remaining--; $('clock').textContent=fmt(remaining); if(remaining%5===0) saveSession(); if(remaining%20===0) queueCloudSave(true); if(remaining<=300) $('clock').classList.add('dangerText'); if(remaining<=0){clearInterval(timerInt);$('timeupModal').hidden=false;setTimeout(()=>submitExam(true),900);}},1000);}
+function startControlListener(){if(controlUnsub)controlUnsub();controlUnsub=onSnapshot(doc(db,'studentAccess',accessId),snap=>{if(!snap.exists())return;const x=snap.data();const extra=Number(x.extraTimeSeconds||0);if(extra!==lastExtraTime){const delta=extra-lastExtraTime;remaining=Math.max(0,remaining+delta);lastExtraTime=extra;$('clock').textContent=fmt(remaining);show(delta>0?'Admin extra time added ✅':'Admin time reduced','warn')}const control=x.examControl||'running';if(control==='paused'){isPaused=true;$('pauseModal').hidden=false}else if(control==='forceSubmit'&&!submitting){isPaused=false;$('pauseModal').hidden=true;submitExam(true)}else{isPaused=false;$('pauseModal').hidden=true}},()=>{});}
+window.addEventListener('online',()=>{show('Internet reconnected. Answers syncing ✅','ok');queueCloudSave(true);const c=$('connectionStatus');if(c)c.textContent='Connected'});window.addEventListener('offline',()=>{show('Internet disconnected. Answers phone lo safe ga save avutunnayi.','warn');const c=$('connectionStatus');if(c)c.textContent='Offline backup active'});document.addEventListener('visibilitychange',()=>{if(document.hidden){saveSession();queueCloudSave(true)}});
+function renderSubjects(){let subs=[...new Set(qs.map(q=>q.subject||'General'))];document.body.classList.toggle('singleSubjectExam',subs.length===1);$('subjectTabs').innerHTML=subs.map(s=>`<button class="subTab" data-s="${esc(s)}">${esc(s)} (${qs.filter(q=>(q.subject||'General')===s).length})</button>`).join('');document.querySelectorAll('.subTab').forEach(b=>b.onclick=()=>{let i=qs.findIndex(q=>(q.subject||'General')===b.dataset.s); if(i>=0){saveTime();idx=i;render();}})}
+function render(){let q=qs[idx];visited[idx]=true;qStart=Date.now();$('qNo').textContent=`Question ${idx+1}`;$('totalQuestions').textContent=qs.length;$('progressText').textContent=`${idx+1} / ${qs.length}`;$('progressBar').style.width=`${Math.round(((idx+1)/Math.max(1,qs.length))*100)}%`;$('qSubject').textContent=q.subject||'General';$('qbox').innerHTML=formatQuestion(q.question||'');$('options').innerHTML=(q.options||[]).map(o=>`<label class="optionCard ${ans[idx]===o.key?'selected':''}"><input type="radio" name="a" value="${o.key}" ${ans[idx]===o.key?'checked':''}><b>${o.key}</b><span>${esc(o.text||'')}</span></label>`).join('');document.querySelectorAll('input[name=a]').forEach(r=>r.onchange=()=>{ans[idx]=r.value;scheduleSessionSave();updateSubjectProgress(q.subject||'General');renderPaletteOnly();document.querySelectorAll('.optionCard').forEach(c=>c.classList.remove('selected'));r.closest('.optionCard').classList.add('selected')});updateSubjectProgress(q.subject||'General');document.querySelectorAll('.subTab').forEach(b=>b.classList.toggle('active',b.dataset.s===(q.subject||'General')));$('prev').disabled=idx===0 || exam.allowPrevious===false;renderPaletteOnly();scheduleSessionSave();}
+function formatQuestion(text){
+  const t=String(text||'').trim();
+  let safe=esc(t);
+  safe=safe.replace(/\s+(?=(?:I{1,4}|i{1,4})[.:]\s)/g,'\n');
+  safe=safe.replace(/\s+(?=ప్రకటన\s*\d+\s*[:.])/g,'\n');
+  // Put numbered/roman statements one below another: (1), (2), (i), (ii) ...
+  safe=safe.replace(/\s+(?=\((?:\d{1,2}|[ivxIVX]{1,6})\)\s*)/g,'\n');
+  safe=safe.replace(/\s+(?=జాబితా\s*-?\s*(?:1|2|I|II)\s*:)/gi,'\n');
+  safe=safe.replace(/,\s*(?=(?:A|B|C|D|a|b|c|d|i|ii|iii|iv|1|2|3|4)[.)]\s)/g,'\n');
+  safe=safe.replace(/\n/g,'<br>');
+  safe=safe.replace(/((?:I{1,4}|i{1,4})[.:])/g,'<b class="stmtTitle">$1</b>');
+  safe=safe.replace(/(ప్రకటన\s*\d+\s*[:.])/g,'<b class="stmtTitle">$1</b>');
+  return safe;
+}
+function formatMatching(text){
+  const parts=text.split(/జాబితా\s*-?\s*(?:2|II)\s*:/i);
+  let left=(parts[0]||'').replace(/జాబితా\s*-?\s*(?:1|I)\s*:/i,'').trim();
+  let right=(parts[1]||'').trim();
+  const splitItems=(src,pattern)=>{
+    let arr=src.split(pattern).map(x=>x.trim()).filter(Boolean);
+    return arr;
+  };
+  const leftItems=splitItems(left,/(?=\b(?:A|B|C|D|i|ii|iii|iv|1|2|3|4)[.)]\s*)/i);
+  const rightItems=splitItems(right,/(?=\b(?:a|b|c|d|1|2|3|4)[.)]\s*)/i);
+  const rows=Math.max(leftItems.length,rightItems.length,1);
+  let html='<div class="matchingBox"><div class="matchHead">Column - I</div><div class="matchHead">Column - II</div>';
+  for(let i=0;i<rows;i++) html+=`<div class="matchCell">${esc(leftItems[i]||'')}</div><div class="matchCell">${esc(rightItems[i]||'')}</div>`;
+  html+='</div>';
+  return html;
+}
+function updateSubjectProgress(subject){const indexes=qs.map((q,i)=>(q.subject||'General')===subject?i:-1).filter(i=>i>=0);const answered=indexes.filter(i=>ans[i]).length;const currentPos=Math.max(1,indexes.indexOf(idx)+1);$('subjectProgressText').textContent=`${answered} answered / ${indexes.length}`;$('subjectProgressBar').style.width=`${Math.round((answered/Math.max(1,indexes.length))*100)}%`;$('subjectRemaining').textContent=Math.max(0,indexes.length-answered);}
+function renderPaletteOnly(){$('palette').innerHTML=qs.map((q,i)=>{let cls=i===idx?'cur':review[i]?'rev':ans[i]?'ans':visited[i]?'vis':'not';return `<button class="pbtn ${cls}" data-i="${i}" title="Question ${i+1}">${i+1}</button>`}).join('');document.querySelectorAll('.pbtn').forEach(b=>b.onclick=()=>{saveTime();idx=Number(b.dataset.i);render();document.querySelector('.questionPanel')?.scrollIntoView({behavior:'smooth',block:'start'});});$('answeredCount').textContent=Object.keys(ans).length;$('visitedCount').textContent=Object.keys(visited).filter(i=>visited[i]&&!ans[i]).length;$('reviewCount').textContent=Object.keys(review).filter(i=>review[i]).length;$('notCount').textContent=qs.length-Object.keys(visited).length;}
+$('prev').onclick=()=>{if(idx>0 && exam.allowPrevious!==false){saveTime();idx--;render();}};$('next').onclick=()=>{if(idx<qs.length-1){saveTime();idx++;render();}else renderPaletteOnly();};$('clear').onclick=()=>{delete ans[idx];scheduleSessionSave();render();};$('review').onclick=()=>{review[idx]=!review[idx];scheduleSessionSave();renderPaletteOnly();};$('fullscreen').onclick=()=>document.documentElement.requestFullscreen&&document.documentElement.requestFullscreen();$('submit').onclick=openSubmitModal;
+function openSubmitModal(){const unanswered=qs.length-Object.keys(ans).length;$('modalTitle').textContent='Confirm Submission';$('modalText').innerHTML=unanswered>0?`మీరు ఇంకా <b>${unanswered}</b> ప్రశ్నలకు సమాధానం ఇవ్వలేదు.<br><br>Submit చేసిన తర్వాత మళ్లీ Exam లోకి రావడం సాధ్యం కాదు. అయినా Submit చేయాలనుకుంటున్నారా?`:'మీరు పరీక్షను ముగించాలనుకుంటున్నారా?<br><br>Submit చేసిన తర్వాత మళ్లీ Exam లోకి రావడం సాధ్యం కాదు.';$('submitModal').hidden=false;}
+$('continueExam').onclick=()=>{$('submitModal').hidden=true};$('confirmSubmit').onclick=()=>submitExam(false);
+async function downloadStudentAnswerSheet(score,detail){
+  try{
+    if(!window.html2canvas||!window.jspdf)return false;
+    const sheet=document.createElement('div');
+    sheet.className='answerSheetPdf';
+    sheet.style.cssText='position:fixed;left:0;top:0;transform:translateX(-120vw);width:760px;background:#ffffff;color:#111111;padding:28px;z-index:2147483647;opacity:1;visibility:visible;';
+    sheet.innerHTML=`<div class="asBrand">${exam.logoUrl?`<img src="${esc(exam.logoUrl)}" class="asLogo">`:'<div class="asBrandMark">KSR</div>'}<div><h1>${esc(exam.instituteName||exam.instituteCode||'Institute')}</h1><p>Professional MCQ Examination Platform</p></div></div><div class="asHead"><h2>Student Answer Sheet</h2><p><b>Exam:</b> ${esc(exam.title||'Daily Test')}</p><p><b>Exam ID:</b> ${esc(exam.examId||exam.examCode||'')} &nbsp; | &nbsp; <b>Batch:</b> ${esc(exam.batchName||'-')}</p><p><b>Name:</b> ${esc(name)} &nbsp; | &nbsp; <b>Exam Code:</b> ${esc(accessData.code||'')}</p><p><b>Submitted:</b> ${new Date().toLocaleString('en-IN')}</p><div class="asSummaryGrid"><span>Total <b>${qs.length}</b></span><span>Correct <b>${detail.filter(x=>x.correct).length}</b></span><span>Wrong <b>${detail.filter(x=>x.answer&&!x.correct).length}</b></span><span>Unanswered <b>${detail.filter(x=>!x.answer).length}</b></span><span>Score <b>${score}/${qs.length}</b></span></div></div>`+detail.map((d,i)=>{
+      const q=qs[i];
+      return `<div class="asQuestion"><div class="asQ"><b>Q${i+1}.</b> ${formatQuestion(q.question||'')}</div><div class="asOptions">${(q.options||[]).map(o=>{
+        const selected=d.answer===o.key, correct=o.key===d.correctAnswer;
+        return `<div class="asOption ${selected?'asSelected':''} ${correct?'asCorrect':''}"><b>${o.key})</b> <span>${esc(o.text||'')}</span>${selected?'<strong class="asTick">✓ Your Answer</strong>':''}${correct?'<em>Correct Answer</em>':''}</div>`
+      }).join('')}</div></div>`
+    }).join('')+`<div class="asFooter">Generated by KSR ➕ • ${new Date().toLocaleString('en-IN')}</div>`;
+    document.body.appendChild(sheet);
+    await new Promise(r=>setTimeout(r,200));
+    const canvas=await window.html2canvas(sheet,{scale:1.6,useCORS:true,allowTaint:false,backgroundColor:'#ffffff',logging:false,windowWidth:820,scrollX:0,scrollY:0});
+    const {jsPDF}=window.jspdf;
+    const pdf=new jsPDF('p','pt','a4');
+    const pageW=pdf.internal.pageSize.getWidth(),pageH=pdf.internal.pageSize.getHeight(),margin=24;
+    const imgW=pageW-margin*2, imgH=canvas.height*imgW/canvas.width;
+    const pageCanvas=document.createElement('canvas'),ctx=pageCanvas.getContext('2d');
+    const pxPerPage=Math.floor((pageH-margin*2)*canvas.width/imgW);
+    pageCanvas.width=canvas.width;
+    let y=0,page=0;
+    while(y<canvas.height){
+      const h=Math.min(pxPerPage,canvas.height-y);
+      pageCanvas.height=h;
+      ctx.fillStyle='#ffffff';
+      ctx.fillRect(0,0,pageCanvas.width,h);
+      ctx.drawImage(canvas,0,y,canvas.width,h,0,0,canvas.width,h);
+      if(page++)pdf.addPage();
+      const data=pageCanvas.toDataURL('image/jpeg',0.94),drawH=h*imgW/canvas.width;
+      pdf.addImage(data,'JPEG',margin,margin,imgW,drawH,undefined,'FAST');y+=h;
+    }
+    sheet.remove();
+    const safeName=(name||'student').replace(/[^a-zA-Z0-9\u0C00-\u0C7F_-]+/g,'_');
+    pdf.save(`${safeName}_${exam.examId||exam.examCode||'exam'}_Answer_Sheet.pdf`);
+    return true;
+  }catch(e){console.error('Answer PDF error',e);return false;}
+}
+async function submitExam(auto){
+  if(submitting)return;submitting=true;$('submitModal').hidden=true;clearInterval(timerInt);clearInterval(autoSaveInt);saveTime();
+  let score=0;let detail=qs.map((q,i)=>{const marks=Number(q.marks||1);let correct=ans[i]===q.answer;if(correct)score+=marks;return {q:i+1,subject:q.subject||'General',answer:ans[i]||'',correctAnswer:q.answer,correct,marks:correct?marks:0,maxMarks:marks,timeSpent:spent[i]||0,question:q.question||'',options:q.options||[]}});
+  const totalMarks=detail.reduce((sum,d)=>sum+Number(d.maxMarks||1),0);
+  const correctCount=detail.filter(d=>d.correct).length, wrongCount=detail.filter(d=>d.answer&&!d.correct).length, unansweredCount=detail.filter(d=>!d.answer).length;
+  const subjectStats=Object.values(detail.reduce((map,d)=>{const key=d.subject||'General';if(!map[key])map[key]={subject:key,totalQuestions:0,answered:0,correct:0,wrong:0,unanswered:0,score:0,totalMarks:0};const x=map[key];x.totalQuestions++;x.totalMarks+=Number(d.maxMarks||1);x.score+=Number(d.marks||0);if(!d.answer)x.unanswered++;else{x.answered++;if(d.correct)x.correct++;else x.wrong++;}return map;},{}));
+  const percent=totalMarks?Number(((score/totalMarks)*100).toFixed(2)):0;
+  const passPercent=Number(exam.passPercent||exam.passingPercentage||35);
+  const resultPayload={examId,accessId,studentCode:accessData.code||'',examCode:exam.examId||exam.examCode||'',examTitle:exam.title||'Exam',instituteName:exam.instituteName||exam.instituteCode||'KSR',instituteCode:exam.instituteCode||'',instituteId:exam.instituteId||'',batchId:exam.batchId||'',batchName:exam.batchName||'',name,phone,hall,answers:ans,review,score,total:totalMarks,totalQuestions:qs.length,correctCount,wrongCount,unansweredCount,percent,passPercent,status:percent>=passPercent?'Pass':'Fail',subjectStats,details:detail,autoSubmitted:auto,submittedAtLocal:Date.now()};
+  try{
+    await setDoc(doc(db,'results',examId+'_'+accessId),{...resultPayload,submittedAt:serverTimestamp()});
+    await setDoc(doc(db,'leaderboard',examId+'_'+accessId),{examId,examTitle:resultPayload.examTitle,instituteCode:resultPayload.instituteCode,batchId:resultPayload.batchId,name,studentCode:resultPayload.studentCode,score,total:totalMarks,percent,submittedAt:serverTimestamp()});
+    await setDoc(doc(db,'studentAccess',accessId),{status:'completed',completedAt:serverTimestamp(),resultScore:score,answeredCount:correctCount+wrongCount,unansweredCount,currentQuestion:qs.length,remainingSeconds:remaining,lastActivityAt:serverTimestamp(),connectionState:'submitted'},{merge:true});
+    try{localStorage.removeItem(sessionKey());localStorage.setItem('ksrLastResult',JSON.stringify(resultPayload))}catch(e){}
+    $('timeupModal').hidden=false;$('timeupModal').querySelector('h2').textContent='పరీక్ష Submit అయింది ✅';$('timeupModal').querySelector('p').textContent='మీ Answer Sheet PDF download అవుతోంది...';
+    await downloadStudentAnswerSheet(score,detail);
+    setTimeout(()=>{location.href='result.html?examId='+encodeURIComponent(examId)+'&access='+encodeURIComponent(accessId)},700);
+  }catch(e){submitting=false;$('timeupModal').hidden=true;show('Submit error: '+e.message,'err');}
+}
+function applyQuestionShuffle(raw, examData, studentSeed){
+  const mode=examData.questionShuffle || (examData.shuffleQuestions===false?'none':'full');
+  const seedBase=(examData.studentRandomization==='different'?studentSeed:examId)||'ksr';
+  if(mode==='none') return raw.map(q=>({...q,options:(q.options||[]).map(o=>({...o}))}));
+  if(mode==='full') return studentShuffle(raw, seedBase+'|full');
+  const subjectOrder=[]; const groups=new Map();
+  raw.forEach(q=>{const subject=q.subject||'General';if(!groups.has(subject)){groups.set(subject,[]);subjectOrder.push(subject);}groups.get(subject).push(q);});
+  return subjectOrder.flatMap((subject,index)=>studentShuffle(groups.get(subject),seedBase+'|subject|'+index+'|'+subject));
+}
+
+function shuffleQuestionOptions(q, seed){let a=(q.options||[]).map(o=>({...o,originalKey:o.key}));let r=mulberry32(hash(seed));for(let i=a.length-1;i>0;i--){let j=Math.floor(r()*(i+1));[a[i],a[j]]=[a[j],a[i]];}let newAnswer=q.answer;const options=a.map((o,i)=>{const key='ABCD'[i];if(o.originalKey===q.answer)newAnswer=key;return {key,text:o.text};});return {...q,options,answer:newAnswer};}
+function hash(str){let h=1779033703; for(let i=0;i<String(str).length;i++){h=Math.imul(h^String(str).charCodeAt(i),3432918353);h=h<<13|h>>>19;} return h>>>0;}function mulberry32(a){return function(){let t=a+=0x6D2B79F5;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return ((t^t>>>14)>>>0)/4294967296;}}
+history.pushState({exam:true},'',location.href);window.addEventListener('popstate',()=>{history.pushState({exam:true},'',location.href);if(confirm('మీరు పరీక్షను వదిలి బయటకు వెళ్లాలనుకుంటున్నారా?')){location.href='index.html';}});window.addEventListener('beforeunload',e=>{if(!submitting){e.preventDefault();e.returnValue='';}});init();
+</script>
+<script src="./pwa-register.js?v=20260726-cachefix-v1"></script>
+</body></html>

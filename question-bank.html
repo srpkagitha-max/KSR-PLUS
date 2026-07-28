@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="te">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+  <title>KSR Question Bank</title>
+  <link rel="stylesheet" href="style.css?v=20260726-qb3">
+  <link rel="manifest" href="./manifest.json">
+  <meta name="theme-color" content="#064a86">
+  <link rel="apple-touch-icon" href="./icon-192.png">
+</head>
+<body class="adminHubBody qbV2Body">
+  <div class="adminTopbar">
+    <div><h1>KSR Question Bank</h1><p>Subjects, questions and general bits — simple mobile view</p></div>
+    <div class="adminTopActions"><a class="btn gray" href="dashboard.html">← Dashboard</a><button class="gray" id="logout">Logout</button></div>
+  </div>
+
+  <main class="wrap qbV2Wrap">
+    <div id="msg"></div>
+
+    <section class="qbDashboard" aria-label="Question bank dashboard">
+      <div class="qbStat"><span>Total Questions</span><strong id="totalQuestions">0</strong></div>
+      <div class="qbStat"><span>Total Subjects</span><strong id="totalSubjects">0</strong></div>
+      <div class="qbStat"><span>Total Lessons</span><strong id="totalLessons">0</strong></div>
+      <div class="qbStat"><span>General Questions</span><strong id="dashboardGeneral">0</strong></div>
+    </section>
+
+    <section class="card qbSimpleCard">
+      <div class="sectionHeadRow"><div><h2>1. Subjects</h2><p class="small">Subject name mariyu code save cheyyandi.</p></div><button id="refreshBtn" class="gray">Refresh</button></div>
+      <form id="subjectForm" class="qbSubjectForm">
+        <input id="subjectName" placeholder="Subject Name — Mathematics" required>
+        <input id="subjectCode" placeholder="Code — MAT" maxlength="12" required>
+        <button type="submit" class="green">Save Subject</button>
+      </form>
+      <div id="subjectList" class="qbSubjectList"></div>
+    </section>
+
+    <section class="card qbSimpleCard">
+      <div><h2>2. Add Questions</h2><p class="small">Subject select cheyyakapothe questions General lo save avutayi.</p></div>
+      <div class="grid four qbAddGrid">
+        <div><label>Subject / Code</label><select id="subjectSelect"><option value="">General — No Subject</option></select></div>
+        <div><label>Class</label><input id="className" placeholder="DSC / Class 5"></div>
+        <div><label>Lesson</label><input id="lesson" placeholder="Lesson / Topic"></div>
+        <div><label>Difficulty</label><select id="difficulty"><option value="Not Selected">Not Selected</option><option>Easy</option><option>Medium</option><option>Hard</option></select></div>
+      </div>
+      <label>Questions Paste Box</label>
+      <textarea id="rawBits" class="bits-box" placeholder="1. Question text\nA) Option 1\nB) Option 2 ●\nC) Option 3\nD) Option 4"></textarea>
+      <div class="action-row"><button id="parseBtn">Parse & Preview</button><button class="green" id="saveBtn" disabled>Save Questions</button><button class="gray" id="clearBtn">Clear</button></div>
+      <div id="parseInfo" class="health-box"></div><div id="preview"></div>
+    </section>
+
+    <section class="card qbSimpleCard" id="generalSection">
+      <div class="sectionHeadRow"><div><h2>3. General Questions</h2><p class="small">Subject/code leni questions. Select chesi move leda delete cheyyandi.</p></div><strong id="generalCount" class="qbCountBadge">0</strong></div>
+      <div class="qbToolbar">
+        <input id="generalSearch" placeholder="Search general questions">
+        <button id="generalSelectAll" class="gray">Select All</button>
+        <button id="generalClear" class="gray">Clear Selection</button>
+        <button id="generalMove">Move Selected</button>
+        <button id="generalDelete" class="danger">Delete Selected</button>
+      </div>
+      <div id="generalList"></div>
+    </section>
+
+    <section class="card qbSimpleCard">
+      <div class="sectionHeadRow"><div><h2>4. Subject → Lesson Questions</h2><p class="small">Subject select cheyyandi. Tarvatha lesson press chesthe aa lesson questions matrame kanipisthayi.</p></div><button id="clearSubjectFilter" class="gray">Show All</button></div>
+      <div class="qbToolbar">
+        <select id="browseSubject"><option value="">All Subjects</option></select>
+        <input id="browseSearch" placeholder="Search question / lesson / class">
+      </div>
+      <div id="selectedSubjectSummary" class="qbSelectedSubjectSummary"></div>
+      <div id="lessonFolders" class="qbLessonFolders"></div>
+      <div id="subjectQuestionsList"></div>
+      <div class="qbPager"><button id="prevPage" class="gray">← Previous</button><span id="pageInfo"></span><button id="nextPage" class="gray">Next →</button></div>
+    </section>
+  </main>
+
+  <dialog id="questionDialog" class="qbDialog">
+    <form method="dialog" id="questionEditForm">
+      <div class="sectionHeadRow"><h2 id="dialogTitle">Edit Question</h2><button type="button" class="gray dialogClose">✕</button></div>
+      <input type="hidden" id="editId">
+      <label>Question</label><textarea id="editQuestion" required></textarea>
+      <div class="grid two">
+        <div><label>A</label><input id="editA" required></div><div><label>B</label><input id="editB" required></div>
+        <div><label>C</label><input id="editC" required></div><div><label>D</label><input id="editD" required></div>
+      </div>
+      <div class="grid two"><div><label>Correct Answer</label><select id="editAnswer"><option>A</option><option>B</option><option>C</option><option>D</option></select></div><div><label>Difficulty</label><select id="editDifficulty"><option>Not Selected</option><option>Easy</option><option>Medium</option><option>Hard</option></select></div></div>
+      <div class="grid three"><div><label>Subject / Code</label><select id="editSubject"><option value="">General</option></select></div><div><label>Class</label><input id="editClass"></div><div><label>Lesson</label><input id="editLesson"></div></div>
+      <div class="action-row"><button type="submit" class="green">Save Changes</button><button type="button" class="gray dialogClose">Cancel</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="moveDialog" class="qbDialog">
+    <form method="dialog" id="moveForm">
+      <div class="sectionHeadRow"><h2>Move Questions</h2><button type="button" class="gray dialogClose">✕</button></div>
+      <p id="moveCountText" class="small"></p>
+      <label>Existing Subject / Code</label><select id="moveSubject"><option value="">General — No Subject</option></select>
+      <p class="small qbOr">— OR create a new subject —</p>
+      <div class="grid two"><div><label>New Subject Name</label><input id="moveNewSubject" placeholder="Optional"></div><div><label>New Subject Code</label><input id="moveNewCode" maxlength="12" placeholder="Optional"></div></div>
+      <div class="grid two"><div><label>Class</label><input id="moveClass" placeholder="Optional"></div><div><label>Lesson</label><input id="moveLesson" placeholder="Optional"></div></div>
+      <div class="action-row"><button type="submit" class="green">Move Now</button><button type="button" class="gray dialogClose">Cancel</button></div>
+    </form>
+  </dialog>
+
+  <script type="module" src="question-bank.js?v=20260726-qb3"></script>
+  <script src="./pwa-register.js?v=20260726-cachefix-v1"></script>
+</body>
+</html>

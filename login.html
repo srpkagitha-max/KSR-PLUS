@@ -1,0 +1,14 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0"><title>KSR Login</title><link rel="stylesheet" href="style.css">
+<link rel="manifest" href="./manifest.json">
+<meta name="theme-color" content="#064a86">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="KSR ➕">
+<link rel="apple-touch-icon" href="./icon-192.png">
+</head><body><div class="hero"><h1>KSR ➕</h1><p>Admin Login</p><div class="nav"><a class="btn gray" href="index.html">Student</a><a class="btn gray" href="create-admin.html">Create Admin</a></div></div><div class="wrap"><div class="card"><h2>Admin Login</h2><div id="msg"></div><label>Email</label><input id="email" placeholder="admin@gmail.com"><label>Password</label><input id="pass" type="password"><button id="login">Login</button></div></div><script type="module">import{auth,signInWithEmailAndPassword,$,show}from'./app.js';$('login').onclick=async()=>{try{await signInWithEmailAndPassword(auth,$('email').value.trim(),$('pass').value);location.href='dashboard.html'}catch(e){show(e.message,'err')}};</script>
+<script src="./pwa-register.js?v=20260726-cachefix-v1"></script>
+</body></html>

@@ -1,0 +1,17 @@
+<!DOCTYPE html><html lang="te"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0"><title>DSC Exam Screen</title><link rel="stylesheet" href="style.css">
+<link rel="manifest" href="./manifest.json">
+<meta name="theme-color" content="#064a86">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="KSR ➕">
+<link rel="apple-touch-icon" href="./icon-192.png">
+</head><body>
+<div class="topbar no-print"><div class="wrap"><div class="brand" id="instName">Institute</div><div class="sub"><span id="examTitle"></span> • Online DSC Exam</div></div></div>
+<div class="wrap"><div id="blocked" class="card hidden"></div><div id="examApp" class="exam-shell hidden"><div class="card question-panel"><div class="qhead"><h2 id="qNo">Question</h2><div class="timer" id="timer">00:00</div></div><div id="qText" class="qbox"></div><div id="opts"></div><div class="nav no-print"><button class="btn gray" onclick="prevQ()">Previous</button><button class="btn" onclick="clearAns()">Clear Answer</button><button class="btn green" onclick="nextQ()">Save & Next</button><button class="btn red" onclick="submitExam(false)">Submit Exam</button></div></div><div class="card side no-print"><h3>Student</h3><p id="studentInfo"></p><h3>Question Palette</h3><div id="qnav" class="qnav"></div><div class="notice"><span class="pill">Green</span> Answered<br><span class="pill">Blue</span> Current</div></div></div></div>
+<script src="parser.js"></script><script src="student.js"></script>
+<script src="./pwa-register.js?v=20260726-cachefix-v1"></script>
+</body></html>

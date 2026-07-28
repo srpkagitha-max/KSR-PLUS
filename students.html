@@ -1,0 +1,31 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0"><title>KSR ➕ Student Master</title><link rel="stylesheet" href="style.css">
+<link rel="manifest" href="./manifest.json">
+<meta name="theme-color" content="#064a86">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="KSR ➕">
+<link rel="apple-touch-icon" href="./icon-192.png">
+</head><body>
+<div class="hero"><h1>KSR ➕ Student Master</h1><p>Version 1.1 Enterprise • Student Access Codes</p><div class="nav"><a class="btn gray" href="dashboard.html">Dashboard</a><a class="btn orange" href="questions.html">Question Editor</a><button class="gray" id="logout">Logout</button></div></div>
+<div class="wrap"><div id="msg"></div>
+<div class="card"><h2>Add Student / Generate Unique Code</h2><div class="grid two"><div><label>Institute</label><select id="institute"></select></div><div><label>Exam</label><select id="exam"></select></div><div><label>Student Name</label><input id="name" placeholder="Student name"></div><div><label>Hall Ticket</label><input id="hall" placeholder="Hall ticket number"></div><div><label>Mobile</label><input id="mobile" placeholder="Mobile number"></div><div><label>Batch / Section</label><input id="batch" placeholder="Batch or section"></div><div><label>Photo URL (Optional)</label><input id="photo" placeholder="https://..."></div><div><label>Unique Student Code</label><div class="examCodeRow"><input id="studentCode" placeholder="Auto-generated"><button type="button" class="gray" id="generate">Generate</button></div></div></div><button class="green" id="save">Save Student Access</button></div>
+<div class="card"><h2>Student Search</h2><input id="search" placeholder="Search by name, hall ticket, mobile or code"><div id="list"></div></div>
+</div>
+<script type="module">
+import{auth,db,onAuthStateChanged,signOut,collection,getDocs,addDoc,serverTimestamp,deleteDoc,doc,$,show,esc}from'./app.js';
+let user=null, institutes=[], exams=[], records=[];
+onAuthStateChanged(auth,u=>{if(!u)location.href='login.html';else{user=u;loadMasters();}});$('logout').onclick=()=>signOut(auth);
+$('institute').onchange=renderExamOptions;$('generate').onclick=()=>{$('studentCode').value=makeCode();};$('search').oninput=renderList;
+$('save').onclick=async()=>{try{const instituteCode=$('institute').value;const examId=$('exam').value;const exam=exams.find(x=>x.id===examId);const name=$('name').value.trim(),hall=$('hall').value.trim(),mobile=$('mobile').value.trim(),batch=$('batch').value.trim(),photo=$('photo').value.trim();let code=$('studentCode').value.trim().toUpperCase();if(!instituteCode||!examId||!name||!hall||!code)return show('Institute, Exam, Name, Hall Ticket, Unique Code compulsory','err');const snap=await getDocs(collection(db,'studentAccess'));let duplicate=false;snap.forEach(d=>{const x=d.data();if((x.code||'').toUpperCase()===code || (x.examId===examId && (x.hallTicket||'').toUpperCase()===hall.toUpperCase()))duplicate=true;});if(duplicate)return show('Ee code లేదా hall ticket ee exam ki already undi','err');await addDoc(collection(db,'studentAccess'),{instituteCode,examId,examCode:exam?.examCode||'',examTitle:exam?.title||'',studentName:name,hallTicket:hall,mobile,batch,photoUrl:photo,code,status:'unused',createdBy:user.email,createdAt:serverTimestamp()});show('Student access saved ✅ Code: '+code);['name','hall','mobile','batch','photo','studentCode'].forEach(id=>$(id).value='');loadRecords();}catch(e){show(e.message,'err')}};
+async function loadMasters(){const is=await getDocs(collection(db,'institutes'));institutes=[];is.forEach(d=>institutes.push({id:d.id,...d.data()}));$('institute').innerHTML=institutes.map(x=>`<option value="${esc(x.code)}">${esc(x.name)} (${esc(x.code)})</option>`).join('');const es=await getDocs(collection(db,'exams'));exams=[];es.forEach(d=>exams.push({id:d.id,...d.data()}));renderExamOptions();loadRecords();}
+function renderExamOptions() {const code=$('institute').value;const filtered=exams.filter(x=>(x.instituteCode||'')===code);$('exam').innerHTML=filtered.map(x=>`<option value="${x.id}">${esc(x.title)} • ${esc(x.examCode||'No Code')}</option>`).join('');}
+function makeCode(){const exam=exams.find(x=>x.id===$('exam').value);const prefix=String(exam?.examCode||$('institute').value||'KSR').replace(/[^A-Z0-9]/gi,'').slice(0,12).toUpperCase();const rnd=Math.random().toString(36).slice(2,6).toUpperCase();return prefix+'-'+rnd;}
+async function loadRecords(){const snap=await getDocs(collection(db,'studentAccess'));records=[];snap.forEach(d=>records.push({id:d.id,...d.data()}));records.sort((a,b)=>String(a.studentName||'').localeCompare(String(b.studentName||'')));renderList();}
+function renderList(){const q=$('search').value.trim().toLowerCase();const filtered=records.filter(x=>[x.studentName,x.hallTicket,x.mobile,x.code,x.examCode].some(v=>String(v||'').toLowerCase().includes(q)));$('list').innerHTML=filtered.length?filtered.map(x=>`<div class="qcard"><div class="grid two"><div><b>${esc(x.studentName)}</b><p>Hall: ${esc(x.hallTicket)} • Mobile: ${esc(x.mobile||'-')}</p><p>Exam: ${esc(x.examTitle||x.examCode)} • Batch: ${esc(x.batch||'-')}</p></div><div><p><b>Unique Code:</b> <span class="pill">${esc(x.code)}</span></p><p>Status: <b>${esc(x.status||'unused')}</b></p><button class="danger deleteStudent" data-id="${x.id}">Delete</button></div></div></div>`).join(''):'<p class="small">No students found.</p>';document.querySelectorAll('.deleteStudent').forEach(b=>b.onclick=async()=>{if(!confirm('Delete this student access?'))return;await deleteDoc(doc(db,'studentAccess',b.dataset.id));show('Deleted ✅');loadRecords();});}
+</script>
+<script src="./pwa-register.js?v=20260726-cachefix-v1"></script>
+</body></html>

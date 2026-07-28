@@ -1,0 +1,47 @@
+<!doctype html><html lang="te"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0"><title>KSR Students & Contacts</title><link rel="stylesheet" href="style.css">
+<link rel="manifest" href="./manifest.json">
+<meta name="theme-color" content="#064a86">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="KSR ➕">
+<link rel="apple-touch-icon" href="./icon-192.png">
+</head><body class="adminHubBody">
+<div class="adminTopbar"><div><h1>Students & Contacts</h1><p>Institute → Batch → Students</p></div><div class="adminTopActions"><a class="btn gray" href="dashboard.html">Dashboard</a><button class="gray" id="logout">Logout</button></div></div>
+<div class="wrap"><div id="msg"></div>
+<section class="card hierarchyCard">
+  <div class="sectionHeadRow"><div><h2>Student Management</h2><p class="small">Institute select cheyyandi → Batch select cheyyandi → aa batch students maatrame kanipistharu.</p></div><div class="action-row compact"><button type="button" id="showMasterBtn" class="gray">+ Institute / Batch</button><button type="button" id="showContactsBtn" class="orange">Contact List</button></div></div>
+  <div class="hierarchyStep"><b>1. Institute</b><div id="instituteCards" class="choiceCards"></div></div>
+  <div class="hierarchyStep"><b>2. Batch</b><div id="batchCards" class="choiceCards"><p class="small">Institute select cheyyandi.</p></div></div>
+  <div class="hierarchySummary" id="hierarchySummary">Institute and batch select cheyyandi.</div>
+</section>
+
+<section id="studentPanel" class="card" hidden>
+  <div class="sectionHeadRow"><div><h2 id="studentPanelTitle">Students</h2><p class="small" id="studentPanelSub"></p></div><div class="action-row compact"><button class="green" id="openAddStudent">+ Add Student</button><button class="gray" id="loadStudents">Refresh</button></div></div>
+  <div class="studentToolbar"><input id="studentSearch" placeholder="Search by name / phone / roll no"><select id="statusFilter"><option value="all">All Status</option><option value="active">Active</option><option value="hold">On Hold</option><option value="inactive">Inactive</option></select></div>
+  <div id="studentList"></div>
+</section>
+
+<section id="addStudentPanel" class="card" hidden>
+  <div class="sectionHeadRow"><div><h2>Add Student</h2><p class="small" id="addStudentContext"></p></div><button type="button" class="gray" id="closeAddStudent">Close</button></div>
+  <div class="grid two"><div><label>Student Name</label><input id="studentName" placeholder="Student name"></div><div><label>Phone Number</label><input id="studentPhone" inputmode="numeric" maxlength="10" placeholder="10 digit mobile"></div><div><label>Hall Ticket / Roll No. (optional)</label><input id="studentRoll" placeholder="Roll number"></div><div><label>Status</label><select id="studentStatus"><option value="active">Active</option><option value="hold">On Hold</option><option value="inactive">Inactive</option></select></div></div>
+  <div class="action-row"><button class="green" id="addStudent">Save Student</button><button class="gray" id="clearStudent">Clear</button></div>
+  <label>Bulk Add (one student per line)</label><p class="small">Format: Name, Phone, Roll No. — Phone/Roll optional.</p><textarea id="bulkStudents" class="bits-box smallBits" placeholder="Ravi, 9876543210, 101\nSita, 9123456780, 102\nKumar"></textarea><button id="bulkAdd" class="orange">Add All Students</button>
+</section>
+
+<section id="masterPanel" class="card" hidden>
+  <div class="sectionHeadRow"><div><h2>Institute & Batch Setup</h2><p class="small">Kottha institute / batch ikkada create cheyyandi.</p></div><button type="button" class="gray" id="closeMasterBtn">Close</button></div>
+  <div class="grid two"><div><label>Institute Name</label><input id="instName" placeholder="KSR Academy"><label>Logo URL (optional)</label><input id="instLogo" placeholder="https://..."><button class="green" id="saveInst">Save Institute</button><div id="instList" class="compactList"></div></div><div><label>Institute</label><select id="batchInst"></select><label>Batch Name</label><input id="batchName" placeholder="Batch 1 / Morning Batch"><button class="green" id="saveBatch">Save Batch</button><div id="batchList" class="compactList"></div></div></div>
+</section>
+
+<section id="contactsPanel" class="card" hidden>
+  <div class="sectionHeadRow"><div><h2>Exam Contact List</h2><p class="small">Student login / submit data nundi Name + Phone. Results PDF lo phone numbers kanapadavu.</p></div><div class="action-row compact"><button type="button" class="gray" id="printContacts">Download / Print PDF</button><button type="button" class="gray" id="closeContactsBtn">Close</button></div></div>
+  <div class="studentToolbar"><input id="contactSearch" placeholder="Search name / phone / exam / batch"><select id="contactInstitute"><option value="all">All Institutes</option></select><select id="contactBatch"><option value="all">All Batches</option></select></div>
+  <div id="contactList"><p class="small">Contact List button nokkandi.</p></div>
+</section>
+</div><script type="module" src="master-data.js"></script>
+<script src="./pwa-register.js?v=20260726-cachefix-v1"></script>
+</body></html>
