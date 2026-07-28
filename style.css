@@ -434,3 +434,13 @@
 .bulkCheck{display:flex;justify-content:center}.bulkCheck input{width:20px;height:20px}
 @media(max-width:900px){.bulkFilterGrid,.bulkOperationGrid{grid-template-columns:1fr 1fr}.bulkTableHead{display:none}.bulkQuestionRow{grid-template-columns:44px 1fr}.bulkQuestionRow>div,.bulkQuestionRow>.bulkDifficulty{grid-column:2}.bulkToolbar span{width:100%;margin-left:0}}
 @media(max-width:560px){.bulkFilterGrid,.bulkOperationGrid{grid-template-columns:1fr}.bulkManagerCard{padding:12px}.bulkManagerActions button,.bulkToolbar button{flex:1}.bulkQuestionOpen span{white-space:normal}}
+
+/* KSR PLUS Sprint 2 - Smart clickable parser health metrics */
+.sprint2HealthMetrics{display:grid;grid-template-columns:repeat(5,minmax(145px,1fr));gap:10px;margin:12px 0 16px}
+.sprint2Metric{display:flex;flex-direction:column;align-items:flex-start;text-align:left;min-height:112px;padding:13px;border:1px solid #d8e3ef;border-radius:14px;background:#fff;color:#17324d;cursor:pointer;box-shadow:0 4px 14px rgba(31,73,115,.06)}
+.sprint2Metric span{font-size:13px;font-weight:800}.sprint2Metric b{font-size:28px;line-height:1.1;margin:8px 0 4px}.sprint2Metric small{font-size:11px;opacity:.72}
+.sprint2Metric:hover,.sprint2Metric:focus{transform:translateY(-1px);box-shadow:0 7px 18px rgba(31,73,115,.12)}
+.sprint2Metric.total{border-color:#9cc6ed;background:#f5fbff}.sprint2Metric.missing{border-color:#e8c86f;background:#fffdf3}.sprint2Metric.critical{border-color:#efaaaa;background:#fff7f7}.sprint2Metric.duplicate{border-color:#e8b98b;background:#fff9f1}.sprint2Metric.invalid{border-color:#c6b4eb;background:#fbf8ff}
+.healthDetailTitle{margin-top:4px}
+@media(max-width:920px){.sprint2HealthMetrics{grid-template-columns:repeat(2,minmax(0,1fr))}.sprint2Metric.total{grid-column:1/-1}}
+@media(max-width:520px){.sprint2HealthMetrics{grid-template-columns:1fr}.sprint2Metric.total{grid-column:auto}.sprint2Metric{min-height:96px}}

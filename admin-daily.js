@@ -20,7 +20,7 @@ import {
   esc
 } from './app.js?v=20260727-create-exam-core-v4';
 
-import * as Parser from './parser.js?v=20260729-universal-parser-v3';
+import * as Parser from './parser.js?v=20260729-sprint2-health-v1';
 
 // Parser compatibility layer: using a namespace import prevents the whole Create Exam
 // module from failing when GitHub temporarily serves an older parser.js that lacks one
@@ -1312,6 +1312,16 @@ function renderHealth() {
   const activeStudents = Number($('activeStudentCount')?.value || 0);
   const backupCodes = Number($('backupCodeCount')?.value || 0);
   const importSummary = currentSubject().parserDiagnostics || lastImportSummary;
+  const criticalCount = issues.filter(issue => issue.severity === 'critical').length;
+  const duplicateSplitCount = issueCount('duplicate') + issueCount('brokenQuestion');
+  const invalidOptionsCount = issueCount('missingOptions');
+  const sprint2MetricsHtml = `<section class="sprint2HealthMetrics">
+    <button type="button" class="sprint2Metric total" data-health-filter="all"><span>Parsed Questions</span><b>${allQuestions.length}</b><small>All parsed bits</small></button>
+    <button type="button" class="sprint2Metric missing" data-health-filter="missingAnswer"><span>Missing Answers</span><b>${issueCount('missingAnswer')}</b><small>Press to view questions</small></button>
+    <button type="button" class="sprint2Metric critical" data-health-filter="critical"><span>Critical Issues</span><b>${criticalCount}</b><small>Press to view questions</small></button>
+    <button type="button" class="sprint2Metric duplicate" data-health-filter="brokenQuestion"><span>Duplicate / Split</span><b>${duplicateSplitCount}</b><small>Broken or repeated bits</small></button>
+    <button type="button" class="sprint2Metric invalid" data-health-filter="missingOptions"><span>Invalid Options</span><b>${invalidOptionsCount}</b><small>Incomplete option sets</small></button>
+  </section>`;
   const importSummaryHtml = importSummary ? `<section class="parserImportSummary">
     <div class="parserSummaryHead"><b>Phase 2.2 Import Summary</b><span>${Number(importSummary.confidence || 0)}% confidence</span></div>
     <div class="parserSummaryGrid">
@@ -1327,7 +1337,9 @@ function renderHealth() {
   </section>` : '';
   $('health').innerHTML = `
     ${importSummaryHtml}
-    <div class="examHealthTitleRow"><b>Phase 4 · Parser Health Dashboard</b><span class="healthStatusBadge ${overallHealth.status.toLowerCase()}">${overallHealth.status}</span></div>
+    <div class="examHealthTitleRow"><b>Sprint 2 · Smart Parser Health Dashboard</b><span class="healthStatusBadge ${overallHealth.status.toLowerCase()}">${overallHealth.status}</span></div>
+    ${sprint2MetricsHtml}
+    <div class="examHealthTitleRow healthDetailTitle"><b>Issue Explorer</b><span class="healthStatusBadge ${overallHealth.status.toLowerCase()}">${overallHealth.status}</span></div>
     <section class="healthScoreHero ${overallHealth.status.toLowerCase()}">
       <div class="healthScoreRing" style="--health-score:${overallHealth.healthScore}"><strong>${overallHealth.healthScore}%</strong><span>Health Score</span></div>
       <div class="healthHeroStats">
