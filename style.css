@@ -444,3 +444,9 @@
 .healthDetailTitle{margin-top:4px}
 @media(max-width:920px){.sprint2HealthMetrics{grid-template-columns:repeat(2,minmax(0,1fr))}.sprint2Metric.total{grid-column:1/-1}}
 @media(max-width:520px){.sprint2HealthMetrics{grid-template-columns:1fr}.sprint2Metric.total{grid-column:auto}.sprint2Metric{min-height:96px}}
+
+/* Sprint 3 - one click issue resolver */
+.qcard.sprint3ActiveIssue{border:2px solid #d97706;background:#fffdf7;box-shadow:0 0 0 5px rgba(217,119,6,.10)}
+.sprint3FixPanel{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:14px;padding:12px;border:1px solid #f0b45e;border-radius:12px;background:#fff4d8}
+.sprint3FixPanel div{display:grid;gap:4px}.sprint3FixPanel b{color:#744400}.sprint3FixPanel small{color:#765b2d;line-height:1.35}.sprint3FixPanel button{white-space:nowrap;min-height:42px}
+@media(max-width:620px){.sprint3FixPanel{align-items:stretch;flex-direction:column}.sprint3FixPanel button{width:100%}}

@@ -20,7 +20,7 @@ import {
   esc
 } from './app.js?v=20260727-create-exam-core-v4';
 
-import * as Parser from './parser.js?v=20260729-sprint2-health-v1';
+import * as Parser from './parser.js?v=20260729-sprint3-resolver-v1';
 
 // Parser compatibility layer: using a namespace import prevents the whole Create Exam
 // module from failing when GitHub temporarily serves an older parser.js that lacks one
@@ -98,6 +98,7 @@ let lastImportSummary = null;
 let lastDuplicateRemovalSnapshot = null;
 let healthIssueFilter = 'all';
 let healthIssueCursor = -1;
+let activeHealthIssue = null;
 
 const LAST_GENERATED_CODES_KEY = 'ksrLastGeneratedCodesV1';
 
@@ -1203,20 +1204,82 @@ function applySafeHealthFixes() {
 function openHealthIssue(issue) {
   if (!issue) return;
   commitCurrentSubject();
-  activeSubjectIndex = Number(issue.subjectIndex || 0);
+  activeHealthIssue = {
+    subjectIndex: Number(issue.subjectIndex || 0),
+    questionIndex: Number(issue.questionIndex || 0),
+    type: issue.type || 'all',
+    severity: issue.severity || 'warning',
+    text: issue.text || ''
+  };
+  activeSubjectIndex = activeHealthIssue.subjectIndex;
   loadActiveSubject();
   renderEditor();
   $('questionEditor').dataset.open = '1';
   if ($('parseBtn')) $('parseBtn').textContent = 'Save Edits & Close';
   setTimeout(() => {
-    const card = document.querySelectorAll('.qcard')[Number(issue.questionIndex || 0)];
+    const card = document.querySelectorAll('.qcard')[activeHealthIssue?.questionIndex ?? -1];
     if (card) {
       card.classList.add('issueHere');
       card.scrollIntoView({ behavior: 'smooth', block: 'center' });
       card.querySelector('textarea,input,select')?.focus();
-      setTimeout(() => card.classList.remove('issueHere'), 3000);
     }
-  }, 30);
+  }, 40);
+}
+
+function getCurrentHealthIssues() {
+  commitCurrentSubject();
+  const allQuestions = subjects.flatMap((subject, subjectIndex) =>
+    (subject.questions || []).map((q, questionIndex) => ({
+      ...q,
+      subject: subject.name,
+      subjectIndex,
+      subjectQuestionIndex: questionIndex
+    }))
+  );
+  return validateQuestionList(allQuestions);
+}
+
+function applyCurrentHealthFix(questionIndex) {
+  sync();
+  const target = activeHealthIssue || {
+    subjectIndex: activeSubjectIndex,
+    questionIndex: Number(questionIndex || 0),
+    type: 'all'
+  };
+  const issues = getCurrentHealthIssues();
+  const sameTypeStillExists = issues.find(issue =>
+    Number(issue.subjectIndex) === Number(target.subjectIndex) &&
+    Number(issue.questionIndex) === Number(target.questionIndex) &&
+    (target.type === 'all' || issue.type === target.type)
+  );
+
+  if (sameTypeStillExists) {
+    activeHealthIssue = { ...sameTypeStillExists };
+    renderHealth();
+    flash(`Q${Number(target.questionIndex) + 1} issue inka solve avvaledu. Fields check cheyyandi.`);
+    setTimeout(() => {
+      const card = document.querySelectorAll('.qcard')[Number(target.questionIndex)];
+      card?.classList.add('issueHere');
+      card?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 30);
+    return;
+  }
+
+  saveDraft();
+  const remaining = issues.filter(issue =>
+    healthIssueFilter === 'all' ||
+    issue.severity === healthIssueFilter ||
+    issue.type === healthIssueFilter
+  );
+  const nextIssue = remaining.find(issue =>
+    Number(issue.subjectIndex) > Number(target.subjectIndex) ||
+    (Number(issue.subjectIndex) === Number(target.subjectIndex) && Number(issue.questionIndex) >= Number(target.questionIndex))
+  ) || remaining[0] || null;
+
+  activeHealthIssue = null;
+  renderEditor();
+  flash(`Q${Number(target.questionIndex) + 1} issue solved ✅ Health auto rechecked.`);
+  if (nextIssue) setTimeout(() => openHealthIssue(nextIssue), 180);
 }
 
 function healthIssueLabel(type) {
@@ -1285,7 +1348,7 @@ function renderHealth() {
     const subjectHealth = analyzeQuestionHealth(list);
     const confidence = subjectHealth.healthScore;
     const countType = type => subjectIssues.filter(issue => issue.type === type).length;
-    const issueButtons = subjectIssues.map(issue => `<button type="button" class="issueJump" data-subject-index="${subjectIndex}" data-question-index="${issue.questionIndex}">Q${issue.questionIndex + 1} · ${esc(issue.text.split(':').slice(1).join(':').trim())}</button>`).join('');
+    const issueButtons = subjectIssues.map(issue => `<button type="button" class="issueJump" data-subject-index="${subjectIndex}" data-question-index="${issue.questionIndex}" data-issue-type="${esc(issue.type)}" data-issue-severity="${esc(issue.severity)}">Q${issue.questionIndex + 1} · ${esc(issue.text.split(':').slice(1).join(':').trim())}</button>`).join('');
     return `<section class="subjectHealthCard ${subjectIssues.length ? 'hasIssues' : list.length ? 'healthy' : 'empty'}">
       <div class="subjectHealthHead"><b>${subjectIndex + 1}. ${esc(subject.name || `Subject ${subjectIndex + 1}`)}</b><span>${list.length && !subjectIssues.length ? 'READY' : subjectIssues.length ? 'NEEDS FIX' : 'EMPTY'}</span></div>
       <div class="subjectHealthGrid">
@@ -1305,7 +1368,7 @@ function renderHealth() {
     const count = filter === 'all' ? issues.length : issues.filter(issue => issue.severity === filter || issue.type === filter).length;
     return `<button type="button" class="healthFilterBtn ${healthIssueFilter === filter ? 'active' : ''}" data-health-filter="${filter}">${healthIssueLabel(filter)} <b>${count}</b></button>`;
   }).join('');
-  const filteredIssueHtml = filteredIssues.length ? filteredIssues.map(issue => `<button type="button" class="healthIssueRow ${issue.severity}" data-health-subject="${issue.subjectIndex}" data-health-question="${issue.questionIndex}"><span>${issue.severity === 'critical' ? '⛔' : '⚠️'}</span><b>${esc(issue.label)}</b><em>${esc(healthIssueLabel(issue.type))}</em><small>${esc(issue.text.split(':').slice(1).join(':').trim())}</small></button>`).join('') : '<div class="healthNoFilteredIssues">✅ Ee filter lo issues levu.</div>';
+  const filteredIssueHtml = filteredIssues.length ? filteredIssues.map(issue => `<button type="button" class="healthIssueRow ${issue.severity}" data-health-subject="${issue.subjectIndex}" data-health-question="${issue.questionIndex}" data-health-type="${esc(issue.type)}" data-health-severity="${esc(issue.severity)}"><span>${issue.severity === 'critical' ? '⛔' : '⚠️'}</span><b>${esc(issue.label)}</b><em>${esc(healthIssueLabel(issue.type))}</em><small>${esc(issue.text.split(':').slice(1).join(':').trim())}</small></button>`).join('') : '<div class="healthNoFilteredIssues">✅ Ee filter lo issues levu.</div>';
 
   const secondsEach = Math.max(5, Number($('secondsPerQuestion')?.value || 60));
   const totalMinutes = Math.ceil((allQuestions.length * secondsEach) / 60);
@@ -1337,7 +1400,7 @@ function renderHealth() {
   </section>` : '';
   $('health').innerHTML = `
     ${importSummaryHtml}
-    <div class="examHealthTitleRow"><b>Sprint 2 · Smart Parser Health Dashboard</b><span class="healthStatusBadge ${overallHealth.status.toLowerCase()}">${overallHealth.status}</span></div>
+    <div class="examHealthTitleRow"><b>Sprint 3 · One-Click Issue Resolver</b><span class="healthStatusBadge ${overallHealth.status.toLowerCase()}">${overallHealth.status}</span></div>
     ${sprint2MetricsHtml}
     <div class="examHealthTitleRow healthDetailTitle"><b>Issue Explorer</b><span class="healthStatusBadge ${overallHealth.status.toLowerCase()}">${overallHealth.status}</span></div>
     <section class="healthScoreHero ${overallHealth.status.toLowerCase()}">
@@ -1389,30 +1452,20 @@ function renderHealth() {
   document.querySelectorAll('.healthIssueRow').forEach(button => {
     button.onclick = () => openHealthIssue({
       subjectIndex: Number(button.dataset.healthSubject),
-      questionIndex: Number(button.dataset.healthQuestion)
+      questionIndex: Number(button.dataset.healthQuestion),
+      type: button.dataset.healthType || 'all',
+      severity: button.dataset.healthSeverity || 'warning'
     });
   });
 
   document.querySelectorAll('.issueJump').forEach(button => {
     button.onclick = () => {
-      const targetSubject = Number(button.dataset.subjectIndex);
-      const targetQuestion = Number(button.dataset.questionIndex);
-      commitCurrentSubject();
-      activeSubjectIndex = targetSubject;
-      loadActiveSubject();
-      renderEditor();
-      $('questionEditor').dataset.open = '1';
-      if ($('parseBtn')) $('parseBtn').textContent = 'Save Edits & Close';
-      setTimeout(() => {
-        const card = document.querySelectorAll('.qcard')[targetQuestion];
-        if (card) {
-          card.classList.add('issueHere');
-          card.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          const firstField = card.querySelector('textarea,input,select');
-          firstField?.focus();
-          setTimeout(() => card.classList.remove('issueHere'), 3000);
-        }
-      }, 30);
+      openHealthIssue({
+        subjectIndex: Number(button.dataset.subjectIndex),
+        questionIndex: Number(button.dataset.questionIndex),
+        type: button.dataset.issueType || 'all',
+        severity: button.dataset.issueSeverity || 'warning'
+      });
     };
   });
   $('saveGenerateBtn').disabled = !allQuestions.length || Boolean(issues.length);
@@ -1425,7 +1478,7 @@ function renderEditor() {
   $('questionEditor').innerHTML = questions
     .map(
       (question, index) => `
-        <div class="qcard">
+        <div class="qcard ${activeHealthIssue && activeHealthIssue.subjectIndex === activeSubjectIndex && activeHealthIssue.questionIndex === index ? 'sprint3ActiveIssue' : ''}">
           <div class="qhead">
             <b>Q${index + 1}</b>
 
@@ -1485,15 +1538,21 @@ function renderEditor() {
             class="editAns"
             data-i="${index}"
           >
+            <option value="" ${question.answer ? '' : 'selected'}>Select correct answer</option>
             ${['A', 'B', 'C', 'D']
               .map(
                 key =>
-                  `<option ${
+                  `<option value="${key}" ${
                     question.answer === key ? 'selected' : ''
                   }>${key}</option>`
               )
               .join('')}
           </select>
+          ${activeHealthIssue && activeHealthIssue.subjectIndex === activeSubjectIndex && activeHealthIssue.questionIndex === index ? `
+            <section class="sprint3FixPanel">
+              <div><b>Fixing Q${index + 1}: ${esc(healthIssueLabel(activeHealthIssue.type))}</b><small>${esc((activeHealthIssue.text || '').split(':').slice(1).join(':').trim() || 'Question fields correct chesi Apply Fix press cheyyandi.')}</small></div>
+              <button type="button" class="green applyHealthFix" data-i="${index}">Save / Apply Fix</button>
+            </section>` : ''}
         </div>
       `
     )
@@ -1534,6 +1593,10 @@ function bindEditor() {
         scheduleHealth();
       };
     });
+
+  document.querySelectorAll('.applyHealthFix').forEach(button => {
+    button.onclick = () => applyCurrentHealthFix(Number(button.dataset.i));
+  });
 
   document.querySelectorAll('.deleteQ').forEach(button => {
     button.onclick = () => {
