@@ -1340,6 +1340,7 @@ function renderHealth() {
   const valid = Math.max(0, allQuestions.length - invalidQuestionKeys.size);
   if ($('subjectQuestionCount')) $('subjectQuestionCount').value = questions.length;
 
+  const subjectHealthRows = [];
   const subjectCards = subjects.map((subject, subjectIndex) => {
     const list = (subject.questions || []).map((q, questionIndex) => ({ ...q, subject: subject.name, subjectIndex, subjectQuestionIndex: questionIndex }));
     const subjectIssues = validateQuestionList(list);
@@ -1348,6 +1349,14 @@ function renderHealth() {
     const subjectHealth = analyzeQuestionHealth(list);
     const confidence = subjectHealth.healthScore;
     const countType = type => subjectIssues.filter(issue => issue.type === type).length;
+    const missingAnswers = countType('missingAnswer');
+    const totalSubjectIssues = subjectIssues.length;
+    const statusText = list.length && !totalSubjectIssues ? 'Ready' : totalSubjectIssues ? 'Needs Fix' : 'Empty';
+    subjectHealthRows.push(`<tr class="subjectHealthTableRow ${totalSubjectIssues ? 'hasIssues' : list.length ? 'ready' : 'empty'}" data-subject-health-index="${subjectIndex}" tabindex="0" role="button" aria-label="Open ${esc(subject.name || `Subject ${subjectIndex + 1}`)} questions">
+      <td><b>${esc(subject.name || `Subject ${subjectIndex + 1}`)}</b></td>
+      <td>${list.length}</td><td>${list.length}</td><td>${missingAnswers}</td><td>${totalSubjectIssues}</td>
+      <td><span class="subjectTableStatus ${totalSubjectIssues ? 'needsFix' : list.length ? 'ready' : 'empty'}">${statusText}</span></td>
+    </tr>`);
     const issueButtons = subjectIssues.map(issue => `<button type="button" class="issueJump" data-subject-index="${subjectIndex}" data-question-index="${issue.questionIndex}" data-issue-type="${esc(issue.type)}" data-issue-severity="${esc(issue.severity)}">Q${issue.questionIndex + 1} · ${esc(issue.text.split(':').slice(1).join(':').trim())}</button>`).join('');
     return `<section class="subjectHealthCard ${subjectIssues.length ? 'hasIssues' : list.length ? 'healthy' : 'empty'}">
       <div class="subjectHealthHead"><b>${subjectIndex + 1}. ${esc(subject.name || `Subject ${subjectIndex + 1}`)}</b><span>${list.length && !subjectIssues.length ? 'READY' : subjectIssues.length ? 'NEEDS FIX' : 'EMPTY'}</span></div>
@@ -1361,6 +1370,14 @@ function renderHealth() {
       ${issueButtons ? `<div class="subjectIssueLinks">${issueButtons}</div>` : ''}
     </section>`;
   }).join('');
+
+  const totalMissingAnswers = issueCount('missingAnswer');
+  const totalSubjectIssues = issues.length;
+  const finalSubjectHealthTable = `<section class="finalSubjectHealthSection">
+    <div class="examHealthTitleRow"><div><b>Final Subject Health Table</b><small>Subject row paina press chesthe aa subject questions maatrame open avutayi.</small></div><span class="healthStatusBadge ${issues.length ? 'critical' : allQuestions.length ? 'healthy' : 'empty'}">${issues.length ? 'NEEDS FIX' : allQuestions.length ? 'READY' : 'EMPTY'}</span></div>
+    <div class="subjectHealthTableWrap"><table class="subjectHealthTable"><thead><tr><th>Subject</th><th>Questions</th><th>Marks</th><th>Missing Answers</th><th>Issues</th><th>Status</th></tr></thead>
+    <tbody>${subjectHealthRows.join('')}<tr class="subjectHealthTotalRow"><td><b>Total</b></td><td><b>${allQuestions.length}</b></td><td><b>${allQuestions.length}</b></td><td><b>${totalMissingAnswers}</b></td><td><b>${totalSubjectIssues}</b></td><td><span class="subjectTableStatus ${issues.length ? 'needsFix' : allQuestions.length ? 'ready' : 'empty'}">${issues.length ? 'Needs Fix' : allQuestions.length ? 'Ready' : 'Empty'}</span></td></tr></tbody></table></div>
+  </section>`;
 
   const filters = ['all', 'critical', 'warning', 'missingAnswer', 'missingOptions', 'emptyQuestion', 'brokenQuestion', 'duplicate'];
   const filteredIssues = issues.filter(issue => healthIssueFilter === 'all' || issue.severity === healthIssueFilter || issue.type === healthIssueFilter);
@@ -1400,7 +1417,7 @@ function renderHealth() {
   </section>` : '';
   $('health').innerHTML = `
     ${importSummaryHtml}
-    <div class="examHealthTitleRow"><b>Sprint 3 · One-Click Issue Resolver</b><span class="healthStatusBadge ${overallHealth.status.toLowerCase()}">${overallHealth.status}</span></div>
+    <div class="examHealthTitleRow"><b>Sprint 4 · Final Subject Health Table</b><span class="healthStatusBadge ${overallHealth.status.toLowerCase()}">${overallHealth.status}</span></div>
     ${sprint2MetricsHtml}
     <div class="examHealthTitleRow healthDetailTitle"><b>Issue Explorer</b><span class="healthStatusBadge ${overallHealth.status.toLowerCase()}">${overallHealth.status}</span></div>
     <section class="healthScoreHero ${overallHealth.status.toLowerCase()}">
@@ -1426,7 +1443,8 @@ function renderHealth() {
       <div class="healthFilterBar">${healthFilterHtml}</div>
       <div class="healthIssueList">${filteredIssueHtml}</div>
     </section>
-    <div class="subjectHealthCards">${subjectCards || '<p class="small">Subject parsers levu.</p>'}</div>
+    ${finalSubjectHealthTable}
+    <details class="subjectHealthDetails"><summary>Detailed Subject Issue Cards</summary><div class="subjectHealthCards">${subjectCards || '<p class="small">Subject parsers levu.</p>'}</div></details>
     <div class="health-grid enterpriseHealth">
       <span>Total Subjects: <b>${subjects.length}</b></span><span>Total Bits: <b>${allQuestions.length}</b></span>
       <span>Valid Bits: <b>${valid}</b></span><span>Invalid Bits: <b>${invalidQuestionKeys.size}</b></span>
@@ -1456,6 +1474,20 @@ function renderHealth() {
       type: button.dataset.healthType || 'all',
       severity: button.dataset.healthSeverity || 'warning'
     });
+  });
+
+  document.querySelectorAll('[data-subject-health-index]').forEach(row => {
+    const openSubject = () => {
+      commitCurrentSubject();
+      activeSubjectIndex = Number(row.dataset.subjectHealthIndex || 0);
+      loadActiveSubject();
+      renderSubjectTabs();
+      renderEditor();
+      document.getElementById('questionEditor')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      flash(`${subjects[activeSubjectIndex]?.name || 'Subject'} questions opened ✅`);
+    };
+    row.addEventListener('click', openSubject);
+    row.addEventListener('keydown', event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openSubject(); } });
   });
 
   document.querySelectorAll('.issueJump').forEach(button => {
