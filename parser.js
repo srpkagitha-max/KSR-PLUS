@@ -1,5 +1,5 @@
 /**
- * KSR EXAMOS Parser Phase 4 Step 1 – Parser Health Core + Phase 3 Duplicate Engine
+ * KSR PLUS Stable MCQ Parser
  * - Smart numbered/unnumbered question detection
  * - WhatsApp export cleanup without deleting message content
  * - Statement-question preservation
@@ -236,14 +236,16 @@ function splitQuestionBlocks(lines) {
   for (let index = 0; index < lines.length; index++) {
     const line = lines[index];
     const start = questionStart(line);
-    const unnumberedStart = looksLikeUnnumberedQuestionStart(lines, index);
 
+    // KSR PLUS strict mode: a question starts only with an explicit question
+    // number. Roman statements, list numbers and option lines are never treated
+    // as separate questions.
     if (!current.length) {
-      if (start || unnumberedStart) current = [line];
+      if (start) current = [line];
       continue;
     }
 
-    if (!start && !unnumberedStart) {
+    if (!start) {
       current.push(line);
       continue;
     }
@@ -251,14 +253,20 @@ function splitQuestionBlocks(lines) {
     const progress = optionProgress(current);
     const option = optionKeyFromLine(line);
     const expected = ['A', 'B', 'C', 'D'][progress] || '';
-    const isExpectedNumericOption = Boolean(start && option && option.scheme === 'number' && option.key === expected && progress < 4);
+    const isExpectedNumericOption = Boolean(option && option.scheme === 'number' && option.key === expected && progress < 4);
+    const currentHasAnswer = current.some(isExplicitAnswerLine);
+    const currentIsCompleteQuestion = progress >= 2 || currentHasAnswer;
 
-    if (!isExpectedNumericOption) {
-      blocks.push(current);
-      current = [line];
-    } else {
+    // Numeric options such as 1), 2), 3), 4) belong to the current question.
+    // A numbered line before the current question has options is treated as a
+    // statement/list continuation, preventing 160 questions becoming 234.
+    if (isExpectedNumericOption || !currentIsCompleteQuestion) {
       current.push(line);
+      continue;
     }
+
+    blocks.push(current);
+    current = [line];
   }
 
   if (current.length) blocks.push(current);

@@ -1,7 +1,7 @@
 <!doctype html><html lang="te"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
-<meta http-equiv="Expires" content="0"><title>KSR ➕ Admin</title><link rel="stylesheet" href="style.css?v=20260727-phase5-step1">
+<meta http-equiv="Expires" content="0"><title>KSR ➕ Admin</title><link rel="stylesheet" href="style.css?v=20260728-ksrplus-stage2">
 <link rel="manifest" href="./manifest.json">
 <meta name="theme-color" content="#064a86">
 <meta name="mobile-web-app-capable" content="yes">
@@ -71,89 +71,6 @@
     <button class="gray" id="openBankBtn" type="button">📚 Add from Bank</button>
     <button class="gray" id="saveToBankBtn" type="button">💾 Save All Subjects to Bank</button>
   </div>
-  <section id="duplicateEngine" class="duplicateEngineCard" aria-live="polite">
-    <div class="duplicateEngineHead">
-      <div><h3>Phase 3 · Duplicate Engine</h3><p class="small">Question number, punctuation, extra spaces మరియు line-break differences ignore చేసి duplicates గుర్తిస్తుంది.</p></div>
-      <div class="duplicateActions"><button type="button" class="gray" id="undoDuplicateRemovalBtn" disabled>Undo</button><button type="button" class="orange" id="removeSelectedDuplicatesBtn" disabled>Remove Selected</button><button type="button" class="danger" id="removeDuplicatesBtn" disabled>Remove All Duplicates</button></div>
-    </div>
-    <div class="duplicateStats">
-      <span>Raw Questions <b id="duplicateRawCount">0</b></span>
-      <span>Parsed Questions <b id="duplicateParsedCount">0</b></span>
-      <span>Duplicates <b id="duplicateCount">0</b></span>
-      <span>Unique Questions <b id="duplicateUniqueCount">0</b></span>
-    </div>
-    <div id="duplicatePreview" class="duplicatePreview"><p class="small">Questions parse చేసిన తర్వాత duplicate report ఇక్కడ కనిపిస్తుంది.</p></div>
-  </section>
-
-  <section id="questionTypeAnalyzer" class="questionTypeAnalyzerCard" aria-live="polite">
-    <div class="questionTypeAnalyzerHead">
-      <div><h3>Phase 5 · Question Type Analyzer</h3><p class="small">Standard, statement, matching, pair మరియు assertion–reason questionsని automaticగా classify చేస్తుంది.</p></div>
-      <button type="button" class="gray" id="refreshTypeAnalysisBtn">Refresh Analysis</button>
-    </div>
-    <div id="questionTypeSummary" class="questionTypeSummary"><p class="small">Questions parse చేసిన తర్వాత type distribution ఇక్కడ కనిపిస్తుంది.</p></div>
-  </section>
-
-  <section id="smartAnalytics" class="smartAnalyticsCard" aria-live="polite">
-    <div class="smartAnalyticsHead">
-      <div><h3>Phase 5 · Step 2 Smart Analytics</h3><p class="small">Subject, lesson, difficulty, time, length, keywords మరియు coverageని liveగా analyse చేస్తుంది.</p></div>
-      <div class="smartAnalyticsActions"><button type="button" class="gray" id="refreshSmartAnalyticsBtn">Refresh</button><button type="button" class="orange" id="exportSmartAnalyticsBtn">Export Report</button></div>
-    </div>
-    <div id="smartAnalyticsSummary"><p class="small">Questions parse చేసిన తర్వాత Smart Analytics ఇక్కడ కనిపిస్తుంది.</p></div>
-  </section>
-
-  <section id="examQuality" class="examQualityCard" aria-live="polite">
-    <div class="examQualityHead">
-      <div><h3>Phase 5 · Step 3 Exam Quality AI</h3><p class="small">Health, difficulty, diversity, answer balance, coverage మరియు Bloom’s level ఆధారంగా final exam readinessని అంచనా వేస్తుంది.</p></div>
-      <div class="examQualityActions"><button type="button" class="gray" id="refreshExamQualityBtn">Refresh</button><button type="button" class="orange" id="exportExamQualityBtn">Export Validation</button></div>
-    </div>
-    <div id="examQualitySummary"><p class="small">Questions parse చేసిన తర్వాత Exam Quality ఇక్కడ కనిపిస్తుంది.</p></div>
-  </section>
-
-
-
-
-  <section id="bulkQuestionManager" class="bulkManagerCard" aria-live="polite">
-    <div class="bulkManagerHead">
-      <div><h3>Phase 6 · Step 3 Bulk Question Manager</h3><p class="small">Questionsని search, select, bulk replace, difficulty update, subject/lesson move మరియు delete చేయవచ్చు.</p></div>
-      <div class="bulkManagerActions"><button type="button" class="gray" id="bulkRefreshBtn">Refresh</button><button type="button" class="gray" id="bulkUndoBtn" disabled>Undo Last Action</button></div>
-    </div>
-    <div class="bulkFilterGrid">
-      <input id="bulkSearchText" placeholder="Question / option keyword search">
-      <select id="bulkSubjectFilter"><option value="all">All Subjects</option></select>
-      <select id="bulkDifficultyFilter"><option value="all">All Difficulty</option><option value="easy">Easy</option><option value="medium">Medium</option><option value="hard">Hard</option></select>
-      <input id="bulkLessonFilter" placeholder="Lesson / Topic filter">
-    </div>
-    <div class="bulkToolbar">
-      <button type="button" class="gray" id="bulkSelectVisibleBtn">Select Visible</button>
-      <button type="button" class="gray" id="bulkClearSelectionBtn">Clear Selection</button>
-      <span id="bulkSelectionStatus" class="small">0 selected</span>
-    </div>
-    <div class="bulkOperationGrid">
-      <div class="bulkOperation"><b>Find & Replace</b><input id="bulkFindText" placeholder="Find text"><input id="bulkReplaceText" placeholder="Replace with"><label><input id="bulkReplaceOptions" type="checkbox" checked> Optionsలో కూడా</label><button type="button" id="bulkReplaceBtn">Replace Selected</button></div>
-      <div class="bulkOperation"><b>Difficulty</b><select id="bulkSetDifficulty"><option value="">Choose difficulty</option><option value="easy">Easy</option><option value="medium">Medium</option><option value="hard">Hard</option></select><button type="button" id="bulkDifficultyBtn">Apply Selected</button></div>
-      <div class="bulkOperation"><b>Move Questions</b><input id="bulkTargetSubject" placeholder="Target Subject"><input id="bulkTargetLesson" placeholder="Target Lesson / Topic"><button type="button" id="bulkMoveBtn">Move Selected</button></div>
-      <div class="bulkOperation dangerZone"><b>Delete</b><p class="small">Selected questions permanently remove అవుతాయి. Undo available.</p><button type="button" class="danger" id="bulkDeleteBtn">Delete Selected</button></div>
-    </div>
-    <div id="bulkQuestionSummary" class="bulkQuestionSummary"><p class="small">Refresh నొక్కితే questions list ఇక్కడ కనిపిస్తుంది.</p></div>
-  </section>
-
-  <section id="examBackupRestore" class="examBackupCard" aria-live="polite">
-    <div class="examBackupHead">
-      <div><h3>Phase 6 · Step 2 Backup & Restore</h3><p class="small">Exam settings, subjects మరియు questionsని verified JSON backupగా export చేసి అవసరమైనప్పుడు restore చేయవచ్చు.</p></div>
-      <div class="examBackupActions"><button type="button" class="green" id="createExamBackupBtn">Create Backup</button><button type="button" class="orange" id="restoreExamBackupBtn">Restore Backup</button><button type="button" class="gray" id="refreshBackupHistoryBtn">Refresh History</button></div>
-    </div>
-    <input id="examBackupFile" type="file" accept="application/json,.json" hidden>
-    <div class="backupSafetyNote"><b>Automatic Safety Backup</b><span>Final Exam Save నొక్కే ముందు current exam copy ఈ deviceలో automaticగా save అవుతుంది. Latest 10 backups historyలో ఉంటాయి.</span></div>
-    <div id="backupHistory" class="backupHistory"><p class="small">ఈ deviceలో backup history ఇంకా లేదు.</p></div>
-  </section>
-
-  <section id="examVersioning" class="examVersioningCard" aria-live="polite">
-    <div class="examVersioningHead">
-      <div><h3>Phase 6 · Step 1 Auto Versioning</h3><p class="small">ప్రతి exam updateకు ముందు previous version snapshot automaticగా save అవుతుంది. Current version మరియు history ఇక్కడ చూడవచ్చు.</p></div>
-      <div class="examVersioningActions"><button type="button" class="gray" id="loadVersionHistoryBtn">Load History</button><button type="button" class="orange" id="exportVersionHistoryBtn">Export History</button></div>
-    </div>
-    <div id="examVersionHistory" class="examVersionHistory"><p class="small">Exam ID enter చేసిన తర్వాత version history చూడవచ్చు.</p></div>
-  </section>
 </div>
 <div class="action-row finalExamActions"><button class="orange" id="previewBtn">Student Exam Preview</button><button class="green" id="saveGenerateBtn">Final Exam Save + Generate Codes</button></div>
 <div id="bankPicker" class="card bankPicker" hidden><div class="qhead"><div><h3>Smart Add from Question Bank</h3><p class="small">Subject, class, lesson లేదా keyword batti questions select cheyyandi.</p></div><button type="button" class="gray" id="closeBankBtn">Close</button></div><div class="grid four"><input id="bankSearchText" placeholder="Keyword / Question ID"><input id="bankSubjectFilter" placeholder="Subject"><input id="bankClassFilter" placeholder="Class / Category"><input id="bankLessonFilter" placeholder="Lesson / Topic"></div><div class="action-row"><button type="button" id="loadBankBtn">Load Questions</button><button type="button" class="gray" id="selectAllBankBtn">Select All</button><button type="button" class="gray" id="clearBankSelectionBtn">Clear</button><button type="button" class="green" id="addSelectedBankBtn">Add Selected to Exam</button></div><div id="bankPickerStats" class="health-box"></div><div id="bankPickerList"><p class="small">Filters enter chesi Load Questions nokkandi.</p></div></div>
