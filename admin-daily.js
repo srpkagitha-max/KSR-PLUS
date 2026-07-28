@@ -20,7 +20,7 @@ import {
   esc
 } from './app.js?v=20260727-create-exam-core-v4';
 
-import * as Parser from './parser.js?v=20260728-parser-160-v2';
+import * as Parser from './parser.js?v=20260729-universal-parser-v3';
 
 // Parser compatibility layer: using a namespace import prevents the whole Create Exam
 // module from failing when GitHub temporarily serves an older parser.js that lacks one

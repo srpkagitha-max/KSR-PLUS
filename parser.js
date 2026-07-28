@@ -22,8 +22,10 @@ const LIST_HEADER_RE = /^(?:జాబితా|List)\s*[\-:]?\s*(?:I{1,3}|1|2)\b
 const ANSWER_WORDS = '(?:సరి(?:యైన|అయిన)\\s*)?(?:జవాబు|సమాధానం)|Correct\\s*Answer|Right\\s*Answer|Answer|Ans';
 const ANSWER_LINE_RE = new RegExp(`^[${MARK_CHARS}]?\\s*(?:${ANSWER_WORDS})\\s*[:.\\-]?\\s*([A-D1-4]|ఎ|ఏ|బి|బీ|సి|సీ|డి|డీ)(?:\\s*[\\).:\\-]?\\s*(.*))?$`, 'iu');
 const WHATSAPP_PREFIX_RE = /^\s*\[?\d{1,2}[\/.-]\d{1,2}(?:[\/.-]\d{2,4})?[, ]+\d{1,2}:\d{2}(?:\s?[AP]M)?\]?\s*(?:-\s*)?[^:\n]{1,100}:\s*/iu;
-const CHAT_LABEL_RE = /^(?:Sravanthi\s+Sister|Social|Psychology|Telugu|English|Maths?|Science)\s*:?\s*$/iu;
-const HEADING_RE = /^(?:grand\s*test|daily\s*test|dialy\s*test|psychology|telugu|english|articles?|maths?|mathematics|biology|science|method|methodology|social|social\s*studies|evs?|environmental\s*studies|డైలీ\s*టెస్ట్|గ్రాండ్\s*టెస్ట్|సైకాలజీ|తెలుగు|ఇంగ్లీష్|గణితం|జీవశాస్త్రం|సాంఘికం)$/iu;
+const CHAT_LABEL_RE = /^(?:Sravanthi\s+Sister)\s*:?\s*$/iu;
+const TEST_HEADING_RE = /^(?:grand\s*test|daily\s*test|dialy\s*test|డైలీ\s*టెస్ట్|గ్రాండ్\s*టెస్ట్)$/iu;
+const SUBJECT_HEADING_RE = /^(?:psychology|telugu|english|articles?|maths?|mathematics|biology|science|method|methodology|social|social\s*studies|evs?|environmental\s*studies|సైకాలజీ|తెలుగు|ఇంగ్లీష్|గణితం|జీవశాస్త్రం|సాంఘికం)$/iu;
+const SUBJECT_SENTINEL = '@@KSR_SUBJECT@@';
 
 export function parseQuestions(raw, defaultSubject = 'General') {
   return parseQuestionsDetailed(raw, defaultSubject).questions;
@@ -39,10 +41,16 @@ export function parseQuestionsDetailed(raw, defaultSubject = 'General') {
   const lines = normalizeLines(raw);
   if (!lines.length) return { questions: [], diagnostics: emptyDiagnostics() };
 
-  const rawBlocks = splitQuestionBlocks(lines);
-  const blocks = recoverOrphanQuestionBlocks(rawBlocks);
-  const parsed = blocks
-    .map((block, index) => parseBlock(block, index, defaultSubject))
+  const subjectSegments = segmentBySubject(lines, defaultSubject);
+  const blocksWithSubjects = [];
+  for (const segment of subjectSegments) {
+    const rawBlocks = splitQuestionBlocks(segment.lines);
+    const recovered = recoverOrphanQuestionBlocks(rawBlocks);
+    recovered.forEach(block => blocksWithSubjects.push({ block, subject: segment.subject }));
+  }
+  const blocks = blocksWithSubjects.map(item => item.block);
+  const parsed = blocksWithSubjects
+    .map((item, index) => parseBlock(item.block, index, item.subject || defaultSubject))
     // Never silently delete a detected question. Incomplete questions are kept
     // and clearly reported by the health diagnostics for review.
     .filter(q => q.question);
@@ -122,7 +130,13 @@ function normalizeLines(raw) {
     .map(cleanLeadingMarkerPlacement)
     .filter(Boolean)
     .filter(line => !isChatNoise(line))
-    .filter(line => !isHeading(line));
+    .map(line => {
+      const heading = normalizeHeading(line);
+      if (TEST_HEADING_RE.test(heading)) return '';
+      if (SUBJECT_HEADING_RE.test(heading)) return `${SUBJECT_SENTINEL}:${canonicalSubject(heading)}`;
+      return line;
+    })
+    .filter(Boolean);
 }
 
 function isStandaloneMarker(line) {
@@ -141,8 +155,47 @@ function isChatNoise(line) {
   return CHAT_LABEL_RE.test(value) || /^<Media omitted>$/iu.test(value);
 }
 
-function isHeading(line) {
-  return HEADING_RE.test(String(line || '').replace(/^#+\s*/, '').replace(/[:：]$/, '').trim());
+function normalizeHeading(line) {
+  return String(line || '')
+    .replace(/^#+\s*/, '')
+    .replace(/^\*+|\*+$/g, '')
+    .replace(/[:：]$/, '')
+    .trim();
+}
+
+function canonicalSubject(value) {
+  const heading = normalizeHeading(value).toLocaleLowerCase('en-IN');
+  if (/psychology|సైకాలజీ/u.test(heading)) return 'Psychology';
+  if (/telugu|తెలుగు/u.test(heading)) return 'Telugu';
+  if (/english|article/u.test(heading) || /ఇంగ్లీష్/u.test(heading)) return 'English';
+  if (/math/u.test(heading) || /గణితం/u.test(heading)) return 'Maths';
+  if (/biology/u.test(heading) || /జీవశాస్త్రం/u.test(heading)) return 'Biology';
+  if (/science/u.test(heading)) return 'Science';
+  if (/method/u.test(heading)) return 'Method';
+  if (/social/u.test(heading) || /సాంఘికం/u.test(heading)) return 'Social';
+  if (/^evs?$|environmental/u.test(heading)) return 'EVS';
+  return normalizeHeading(value) || 'General';
+}
+
+function segmentBySubject(lines, defaultSubject) {
+  const segments = [];
+  let subject = defaultSubject || 'General';
+  let current = [];
+  const flush = () => {
+    if (current.length) segments.push({ subject, lines: current });
+    current = [];
+  };
+
+  for (const line of lines) {
+    if (String(line).startsWith(`${SUBJECT_SENTINEL}:`)) {
+      flush();
+      subject = String(line).slice(SUBJECT_SENTINEL.length + 1).trim() || subject;
+    } else {
+      current.push(line);
+    }
+  }
+  flush();
+  return segments.length ? segments : [{ subject, lines: [] }];
 }
 
 function questionStart(line) {
@@ -294,6 +347,17 @@ function parseBlock(lines, index, defaultSubject) {
 
     const option = optionKeyFromLine(line);
     if (option) {
+      const filledCount = ['A', 'B', 'C', 'D'].filter(key => options[key]).length;
+      const expectedKey = ['A', 'B', 'C', 'D'][filledCount] || '';
+      // A broken question line may accidentally begin with 1., 2., 3. or 4.
+      // Treat it as question continuation unless numeric options are arriving
+      // in the expected A→D sequence. This preserves cases such as:
+      // 24. 485.267 లో 'సహ / 25. సహస్రాంశం' ...
+      if (option.scheme === 'number' && option.key !== expectedKey && questionStart(line)) {
+        currentOption = null;
+        questionLines.push(formatQuestionLine(stripMarks(questionStart(line)?.text || line)));
+        continue;
+      }
       let text = option.text.trim();
       const prefixLength = Math.max(0, line.indexOf(option.text));
       const hasMark = hasCorrectAnswerMarker(text) || hasCorrectAnswerMarker(line.slice(0, prefixLength));
