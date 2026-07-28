@@ -1417,7 +1417,7 @@ function renderHealth() {
   </section>` : '';
   $('health').innerHTML = `
     ${importSummaryHtml}
-    <div class="examHealthTitleRow"><b>Sprint 4 · Final Subject Health Table</b><span class="healthStatusBadge ${overallHealth.status.toLowerCase()}">${overallHealth.status}</span></div>
+    <div class="examHealthTitleRow"><b>Sprint 5 · Final Exam Validation</b><span class="healthStatusBadge ${overallHealth.status.toLowerCase()}">${overallHealth.status}</span></div>
     ${sprint2MetricsHtml}
     <div class="examHealthTitleRow healthDetailTitle"><b>Issue Explorer</b><span class="healthStatusBadge ${overallHealth.status.toLowerCase()}">${overallHealth.status}</span></div>
     <section class="healthScoreHero ${overallHealth.status.toLowerCase()}">
@@ -2321,12 +2321,106 @@ async function restoreBackupFile(file) {
 
 
 /* =========================================================
+   SPRINT 5 · FINAL EXAM VALIDATION PREVIEW
+========================================================= */
+function getFinalValidationSnapshot() {
+  sync();
+  const allQuestions = getAllQuestions();
+  const issues = validateQuestionList(allQuestions);
+  const instituteId = $('instituteId')?.value || '';
+  const batchId = $('batchId')?.value || '';
+  const instituteName = $('instituteName')?.value?.trim() || '';
+  const batchName = batches.find(batch => batch.id === batchId)?.name || '';
+  const examId = norm($('examId')?.value || '');
+  const start = $('startTime')?.value || '';
+  const end = $('endTime')?.value || '';
+  const loginBefore = $('loginBefore')?.value || start;
+  const activeStudents = batchStudents.length;
+  const backupCodes = Math.max(0, Math.min(100, Number($('backupCodeCount')?.value || 0)));
+  const subjectRows = subjects.map((subject, subjectIndex) => {
+    const list = (subject.questions || []).map((question, questionIndex) => ({
+      ...question,
+      subject: subject.name,
+      subjectIndex,
+      subjectQuestionIndex: questionIndex
+    }));
+    const subjectIssues = validateQuestionList(list);
+    return {
+      name: subject.name || `Subject ${subjectIndex + 1}`,
+      questions: list.length,
+      marks: list.length,
+      issues: subjectIssues.length,
+      status: list.length && !subjectIssues.length ? 'Ready' : 'Needs Fix'
+    };
+  });
+  const checks = [
+    { key: 'institute', label: 'Institute selected', ok: Boolean(instituteId && instituteName) },
+    { key: 'batch', label: 'Batch selected', ok: Boolean(batchId && batchName) },
+    { key: 'examId', label: 'Exam ID entered', ok: Boolean(examId) },
+    { key: 'time', label: 'Valid exam time', ok: Boolean(start && end && Date.parse(end) > Date.parse(start)) },
+    { key: 'questions', label: 'Questions available', ok: allQuestions.length > 0 },
+    { key: 'health', label: 'Parser Health 100%', ok: allQuestions.length > 0 && issues.length === 0 },
+    { key: 'students', label: 'Active students loaded', ok: activeStudents > 0 }
+  ];
+  return {
+    allQuestions, issues, instituteId, batchId, instituteName, batchName, examId,
+    examTitle: $('examTitle')?.value?.trim() || examId || '-', start, end, loginBefore,
+    seconds: Math.max(5, Number($('secondsPerQuestion')?.value || 60)),
+    activeStudents, backupCodes, totalCodes: activeStudents + backupCodes,
+    subjectRows, checks, ready: checks.every(check => check.ok)
+  };
+}
+
+function closeFinalValidation() {
+  const modal = $('finalValidationModal');
+  if (modal) modal.hidden = true;
+  document.body.classList.remove('finalValidationOpen');
+}
+
+function openFinalValidation() {
+  const data = getFinalValidationSnapshot();
+  const failed = data.checks.filter(check => !check.ok);
+  const subjectTable = data.subjectRows.length ? data.subjectRows.map(row => `
+    <tr class="${row.status === 'Ready' ? 'ready' : 'hasIssues'}"><td>${esc(row.name)}</td><td>${row.questions}</td><td>${row.marks}</td><td>${row.issues}</td><td><b>${row.status}</b></td></tr>`).join('') : '<tr><td colspan="5">Subjects levu.</td></tr>';
+  $('finalValidationContent').innerHTML = `
+    <div class="finalValidationStatus ${data.ready ? 'ready' : 'blocked'}">
+      <strong>${data.ready ? 'READY TO SAVE' : 'SAVE BLOCKED'}</strong>
+      <span>${data.ready ? 'All validation checks passed.' : `${failed.length} checks complete cheyyali.`}</span>
+    </div>
+    <div class="finalValidationSummary">
+      <div><span>Institute</span><b>${esc(data.instituteName || '-')}</b></div>
+      <div><span>Batch</span><b>${esc(data.batchName || '-')}</b></div>
+      <div><span>Exam ID</span><b>${esc(data.examId || '-')}</b></div>
+      <div><span>Exam Name</span><b>${esc(data.examTitle || '-')}</b></div>
+      <div><span>Total Subjects</span><b>${data.subjectRows.length}</b></div>
+      <div><span>Total Questions</span><b>${data.allQuestions.length}</b></div>
+      <div><span>Total Marks</span><b>${data.allQuestions.length}</b></div>
+      <div><span>Active Students</span><b>${data.activeStudents}</b></div>
+      <div><span>Backup Codes</span><b>${data.backupCodes}</b></div>
+      <div><span>Total Codes</span><b>${data.totalCodes}</b></div>
+      <div><span>Start Time</span><b>${esc(formatDateTime(data.start))}</b></div>
+      <div><span>End Time</span><b>${esc(formatDateTime(data.end))}</b></div>
+    </div>
+    <section class="finalValidationChecks"><h3>Validation Checklist</h3>${data.checks.map(check => `<div class="${check.ok ? 'ok' : 'fail'}"><span>${check.ok ? '✅' : '⛔'}</span><b>${esc(check.label)}</b></div>`).join('')}</section>
+    <section class="finalValidationSubjects"><h3>Subject Health</h3><div class="subjectHealthTableWrap"><table class="subjectHealthTable"><thead><tr><th>Subject</th><th>Questions</th><th>Marks</th><th>Issues</th><th>Status</th></tr></thead><tbody>${subjectTable}<tr class="total"><td>Total</td><td>${data.allQuestions.length}</td><td>${data.allQuestions.length}</td><td>${data.issues.length}</td><td><b>${data.issues.length ? 'Needs Fix' : data.allQuestions.length ? 'Ready' : 'Empty'}</b></td></tr></tbody></table></div></section>
+    ${failed.length ? `<div class="finalValidationWarning">⛔ ${failed.map(check => esc(check.label)).join(' · ')}</div>` : '<div class="finalValidationReady">✅ Confirm Save + Generate Codes press cheyyandi.</div>'}`;
+  $('confirmFinalSaveBtn').disabled = !data.ready;
+  $('finalValidationModal').hidden = false;
+  document.body.classList.add('finalValidationOpen');
+}
+
+$('saveGenerateBtn')?.addEventListener('click', openFinalValidation);
+$('closeFinalValidationBtn')?.addEventListener('click', closeFinalValidation);
+$('editFinalValidationBtn')?.addEventListener('click', closeFinalValidation);
+document.querySelectorAll('[data-close-final-validation]').forEach(element => element.addEventListener('click', closeFinalValidation));
+
+/* =========================================================
    SAVE EXAM + GENERATE CODES
    Existing Exam ID unte confirmation vastundi.
    OK press chesthe existing exam update avutundi.
 ========================================================= */
 
-$('saveGenerateBtn')?.addEventListener('click', async () => {
+async function performFinalExamSave() {
   const allQuestions = getAllQuestions();
 
   const instituteId = $('instituteId').value;
@@ -2726,7 +2820,17 @@ $('saveGenerateBtn')?.addEventListener('click', async () => {
     $('saveGenerateBtn').disabled = false;
     renderHealth();
   }
-};
+}
+
+$('confirmFinalSaveBtn')?.addEventListener('click', async () => {
+  const data = getFinalValidationSnapshot();
+  if (!data.ready) {
+    openFinalValidation();
+    return show('Final validation checks complete cheyyandi.', 'err');
+  }
+  closeFinalValidation();
+  await performFinalExamSave();
+});
 
 function formatDateTime(value) {
   if (!value) {
