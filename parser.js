@@ -412,7 +412,7 @@ function cleanDanglingDelimiters(value) {
     const closes = [...text].filter(ch => ch === close).length;
     if (opens > closes && text.endsWith(open)) text = text.slice(0, -1).trim();
   }
-  return text.replace(/\s{2,}/g, ' ').trim();
+  return text.replace(/[ \t]{2,}/g, ' ').replace(/ *\n */g, '\n').replace(/\n{3,}/g, '\n\n').trim();
 }
 
 function detectQuestionType(questionText) {

@@ -81,8 +81,61 @@ function startControlListener(){if(controlUnsub)controlUnsub();controlUnsub=onSn
 window.addEventListener('online',()=>{show('Internet reconnected. Answers syncing ✅','ok');queueCloudSave(true);const c=$('connectionStatus');if(c)c.textContent='Connected'});window.addEventListener('offline',()=>{show('Internet disconnected. Answers phone lo safe ga save avutunnayi.','warn');const c=$('connectionStatus');if(c)c.textContent='Offline backup active'});document.addEventListener('visibilitychange',()=>{if(document.hidden){saveSession();queueCloudSave(true)}});
 function renderSubjects(){let subs=[...new Set(qs.map(q=>q.subject||'General'))];document.body.classList.toggle('singleSubjectExam',subs.length===1);$('subjectTabs').innerHTML=subs.map(s=>`<button class="subTab" data-s="${esc(s)}">${esc(s)} (${qs.filter(q=>(q.subject||'General')===s).length})</button>`).join('');document.querySelectorAll('.subTab').forEach(b=>b.onclick=()=>{let i=qs.findIndex(q=>(q.subject||'General')===b.dataset.s); if(i>=0){saveTime();idx=i;render();}})}
 function render(){let q=qs[idx];visited[idx]=true;qStart=Date.now();$('qNo').textContent=`Question ${idx+1}`;$('totalQuestions').textContent=qs.length;$('progressText').textContent=`${idx+1} / ${qs.length}`;$('progressBar').style.width=`${Math.round(((idx+1)/Math.max(1,qs.length))*100)}%`;$('qSubject').textContent=q.subject||'General';$('qbox').innerHTML=formatQuestion(q.question||'');$('options').innerHTML=(q.options||[]).map(o=>`<label class="optionCard ${ans[idx]===o.key?'selected':''}"><input type="radio" name="a" value="${o.key}" ${ans[idx]===o.key?'checked':''}><b>${o.key}</b><span>${esc(o.text||'')}</span></label>`).join('');document.querySelectorAll('input[name=a]').forEach(r=>r.onchange=()=>{ans[idx]=r.value;scheduleSessionSave();updateSubjectProgress(q.subject||'General');renderPaletteOnly();document.querySelectorAll('.optionCard').forEach(c=>c.classList.remove('selected'));r.closest('.optionCard').classList.add('selected')});updateSubjectProgress(q.subject||'General');document.querySelectorAll('.subTab').forEach(b=>b.classList.toggle('active',b.dataset.s===(q.subject||'General')));$('prev').disabled=idx===0 || exam.allowPrevious===false;renderPaletteOnly();scheduleSessionSave();}
+function isMatchingQuestionText(text){
+  const t=String(text||'');
+  return /(?:జాబితా|List|Column)\s*[-–—:]?\s*(?:I|1)\b/iu.test(t) && /(?:జాబితా|List|Column)\s*[-–—:]?\s*(?:II|2)\b/iu.test(t);
+}
+function splitMatchingItems(src, side){
+  const t=String(src||'').trim();
+  if(!t)return [];
+  const marker=side==='left'
+    ? /(?:^|\n|\s)(\(?[1-9]\d*\)|\(?[IVX]{1,6}\)|[1-9]\d*[.)]|[IVX]{1,6}[.)])\s*/giu
+    : /(?:^|\n|\s)(\(?[a-h]\)|[a-h][.)]|\(?[1-9]\d*\)|[1-9]\d*[.)])\s*/giu;
+  const matches=[...t.matchAll(marker)];
+  if(!matches.length)return t.split('\n').map(x=>x.trim()).filter(Boolean);
+  const out=[];
+  for(let i=0;i<matches.length;i++){
+    const from=matches[i].index+(matches[i][0].length-matches[i][1].length);
+    const to=i+1<matches.length?matches[i+1].index:t.length;
+    out.push(t.slice(from,to).trim());
+  }
+  return out.filter(Boolean);
+}
+function formatMatching(text){
+  let t=String(text||'').replace(/\r/g,'').trim();
+  t=t.replace(/^(?:ప్రశ్న|Question|Q)\s*\d{1,4}\s*[.):-]?\s*/iu,'');
+  // Rebuild boundaries even when an older saved exam collapsed whitespace.
+  t=t
+    .replace(/[ \t]+(?=(?:జాబితా|List|Column)\s*[-–—:]?\s*(?:I|II|1|2)\b)/giu,'\n')
+    .replace(/[ \t]+(?=\([1-9]\d*\)\s*)/gu,'\n')
+    .replace(/[ \t]+(?=\([a-h]\)\s*)/giu,'\n');
+  const h1=/(?:జాబితా|List|Column)\s*[-–—:]?\s*(?:I|1)\b[^\n]*/iu.exec(t);
+  const h2=/(?:జాబితా|List|Column)\s*[-–—:]?\s*(?:II|2)\b[^\n]*/iu.exec(t);
+  if(!h1||!h2||h2.index<=h1.index)return null;
+  const intro=t.slice(0,h1.index).trim();
+  const leftStart=h1.index+h1[0].length;
+  const left=t.slice(leftStart,h2.index).trim();
+  let rightAndTail=t.slice(h2.index+h2[0].length).trim();
+  const tailRe=/(?:^|\n|\s)(సరైన\s*(?:కోడ్|జత|ఆప్షన్)|పై\s*(?:వాటిలో|ప్రకటన)|ఎంచుకోండి|గుర్తించండి|Choose|Select|Which)\b/iu;
+  const tailMatch=tailRe.exec(rightAndTail);
+  let tail='';
+  if(tailMatch){tail=rightAndTail.slice(tailMatch.index).trim();rightAndTail=rightAndTail.slice(0,tailMatch.index).trim();}
+  const leftItems=splitMatchingItems(left,'left');
+  const rightItems=splitMatchingItems(rightAndTail,'right');
+  if(leftItems.length<2||rightItems.length<2)return null;
+  const rows=Math.max(leftItems.length,rightItems.length);
+  let html='';
+  if(intro)html+=`<div class="questionLine matchingIntro">${esc(intro)}</div>`;
+  html+='<div class="matchingBox premiumMatch"><div class="matchHead">జాబితా - I</div><div class="matchHead">జాబితా - II</div>';
+  for(let i=0;i<rows;i++)html+=`<div class="matchCell">${esc(leftItems[i]||'')}</div><div class="matchCell">${esc(rightItems[i]||'')}</div>`;
+  html+='</div>';
+  if(tail)html+=`<div class="questionLine matchingTail">${esc(tail)}</div>`;
+  return html;
+}
 function formatQuestion(text){
   let t=String(text||'').replace(/\r/g,'').trim();
+  const matching=isMatchingQuestionText(t)?formatMatching(t):null;
+  if(matching)return matching;
   // Remove duplicated label saved by older parser builds.
   t=t.replace(/^(?:ప్రశ్న|Question|Q)\s*\d{1,4}\s*[.):-]?\s*/iu,'');
   // Force every statement/list item onto its own line, even when WhatsApp paste
@@ -101,22 +154,6 @@ function formatQuestion(text){
     }
     return `<div class="questionLine">${safe}</div>`;
   }).join('');
-}
-function formatMatching(text){
-  const parts=text.split(/జాబితా\s*-?\s*(?:2|II)\s*:/i);
-  let left=(parts[0]||'').replace(/జాబితా\s*-?\s*(?:1|I)\s*:/i,'').trim();
-  let right=(parts[1]||'').trim();
-  const splitItems=(src,pattern)=>{
-    let arr=src.split(pattern).map(x=>x.trim()).filter(Boolean);
-    return arr;
-  };
-  const leftItems=splitItems(left,/(?=\b(?:A|B|C|D|i|ii|iii|iv|1|2|3|4)[.)]\s*)/i);
-  const rightItems=splitItems(right,/(?=\b(?:a|b|c|d|1|2|3|4)[.)]\s*)/i);
-  const rows=Math.max(leftItems.length,rightItems.length,1);
-  let html='<div class="matchingBox"><div class="matchHead">Column - I</div><div class="matchHead">Column - II</div>';
-  for(let i=0;i<rows;i++) html+=`<div class="matchCell">${esc(leftItems[i]||'')}</div><div class="matchCell">${esc(rightItems[i]||'')}</div>`;
-  html+='</div>';
-  return html;
 }
 function updateSubjectProgress(subject){const indexes=qs.map((q,i)=>(q.subject||'General')===subject?i:-1).filter(i=>i>=0);const answered=indexes.filter(i=>ans[i]).length;const currentPos=Math.max(1,indexes.indexOf(idx)+1);$('subjectProgressText').textContent=`${answered} answered / ${indexes.length}`;$('subjectProgressBar').style.width=`${Math.round((answered/Math.max(1,indexes.length))*100)}%`;$('subjectRemaining').textContent=Math.max(0,indexes.length-answered);}
 function renderPaletteOnly(){$('palette').innerHTML=qs.map((q,i)=>{let cls=i===idx?'cur':review[i]?'rev':ans[i]?'ans':visited[i]?'vis':'not';return `<button class="pbtn ${cls}" data-i="${i}" title="Question ${i+1}">${i+1}</button>`}).join('');document.querySelectorAll('.pbtn').forEach(b=>b.onclick=()=>{saveTime();idx=Number(b.dataset.i);render();document.querySelector('.questionPanel')?.scrollIntoView({behavior:'smooth',block:'start'});});$('answeredCount').textContent=Object.keys(ans).length;$('visitedCount').textContent=Object.keys(visited).filter(i=>visited[i]&&!ans[i]).length;$('reviewCount').textContent=Object.keys(review).filter(i=>review[i]).length;$('notCount').textContent=qs.length-Object.keys(visited).length;}
@@ -196,5 +233,5 @@ function shuffleQuestionOptions(q, seed){let a=(q.options||[]).map(o=>({...o,ori
 function hash(str){let h=1779033703; for(let i=0;i<String(str).length;i++){h=Math.imul(h^String(str).charCodeAt(i),3432918353);h=h<<13|h>>>19;} return h>>>0;}function mulberry32(a){return function(){let t=a+=0x6D2B79F5;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return ((t^t>>>14)>>>0)/4294967296;}}
 history.pushState({exam:true},'',location.href);window.addEventListener('popstate',()=>{history.pushState({exam:true},'',location.href);if(confirm('మీరు పరీక్షను వదిలి బయటకు వెళ్లాలనుకుంటున్నారా?')){location.href='index.html';}});window.addEventListener('beforeunload',e=>{if(!submitting){e.preventDefault();e.returnValue='';}});init();
 </script>
-<script src="./pwa-register.js?v=20260726-cachefix-v1"></script>
+<script src="./pwa-register.js?v=20260729-v10"></script>
 </body></html>

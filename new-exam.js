@@ -48,8 +48,11 @@ $('selectAllBank').onclick=()=>document.querySelectorAll('.bankCheck').forEach(x
 
 function formatPreviewQuestion(text){
   let value=String(text||'').replace(/\r/g,'').trim().replace(/^(?:ప్రశ్న|Question|Q)\s*\d{1,4}\s*[.):-]?\s*/iu,'');
-  value=value.replace(/[ \t]+(?=(?:I|II|III|IV|V|VI|VII|VIII|IX|X|i|ii|iii|iv|v|vi|vii|viii|ix|x)\s*[.):-]\s*)/gu,'\n').replace(/[ \t]+(?=\((?:\d{1,2}|[ivxIVX]{1,6})\)\s*)/gu,'\n');
-  return value.split(/\n+/).map(line=>`<div class="${/^(?:I|II|III|IV|V|VI|VII|VIII|IX|X|i|ii|iii|iv|v|vi|vii|viii|ix|x)\s*[.):-]|^\((?:\d{1,2}|[ivxIVX]{1,6})\)/u.test(line.trim())?'statementLine':'questionLine'}">${esc(line.trim())}</div>`).join('');
+  const hasLists=/(?:జాబితా|List|Column)\s*[-–—:]?\s*(?:I|1)\b/iu.test(value)&&/(?:జాబితా|List|Column)\s*[-–—:]?\s*(?:II|2)\b/iu.test(value);
+  if(hasLists){
+    value=value.replace(/[ \t]+(?=(?:జాబితా|List|Column)\s*[-–—:]?\s*(?:I|II|1|2)\b)/giu,'\n').replace(/[ \t]+(?=\([1-9]\d*\)\s*)/gu,'\n').replace(/[ \t]+(?=\([a-h]\)\s*)/giu,'\n');
+  }
+  return value.split(/\n+/).map(line=>`<div class="${/^(?:I|II|III|IV|V|VI|VII|VIII|IX|X|i|ii|iii|iv|v|vi|vii|viii|ix|x)\s*[.):-]|^\((?:\d{1,2}|[ivxIVX]{1,6}|[a-hA-H])\)|^(?:జాబితా|List|Column)/u.test(line.trim())?'statementLine':'questionLine'}">${esc(line.trim())}</div>`).join('');
 }
 function renderPreview(){const q=questions[previewIndex];$('previewExamTitle').textContent=norm($('examId').value)||'Student Exam Preview';$('previewMeta').textContent=`${previewIndex+1} / ${questions.length} · ${q.subject}`;$('previewNav').innerHTML=questions.map((_,i)=>`<button class="${i===previewIndex?'cur':''}" data-p="${i}">${i+1}</button>`).join('');$('previewQuestion').innerHTML=`<h3>${previewIndex+1}. ${formatPreviewQuestion(q.question)}</h3>${q.options.map(o=>`<label class="optionCard"><input type="radio" name="studentAnswer"><b>${o.key}</b><span>${esc(o.text)}</span></label>`).join('')}<div class="neActions"><button id="prevQ" class="gray">Previous</button><button id="nextQ" class="green">Save & Next</button></div>`;document.querySelectorAll('[data-p]').forEach(b=>b.onclick=()=>{previewIndex=+b.dataset.p;renderPreview();});$('prevQ').onclick=()=>{if(previewIndex>0){previewIndex--;renderPreview();}};$('nextQ').onclick=()=>{if(previewIndex<questions.length-1){previewIndex++;renderPreview();}};}
 $('previewBtn').onclick=()=>{if(!updateHealth().ready)return;previewIndex=0;$('previewModal').hidden=false;renderPreview();};$('closePreview').onclick=()=>{$('previewModal').hidden=true;};

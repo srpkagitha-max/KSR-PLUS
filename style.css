@@ -511,3 +511,12 @@ body.examSaveLocked .finalValidationActions button,body.examSaveLocked #saveGene
 
 /* V6 statement layout fix */
 .questionText .statementLine,.nePreviewQuestion .statementLine,#previewQuestion .statementLine{display:block;margin:9px 0 0 0;padding-left:4px;line-height:1.65}.questionText .questionLine,#previewQuestion .questionLine{display:block;line-height:1.65}.questionText .statementLine+.statementLine,#previewQuestion .statementLine+.statementLine{margin-top:7px}
+
+
+/* V10 matching-question presentation */
+.premiumMatch{margin:14px 0 16px;border:2px solid #9eb4c8;border-radius:12px;box-shadow:0 4px 14px #0b2f5512}
+.premiumMatch .matchHead{background:#0b3b75;color:#fff;font-size:15px;letter-spacing:.2px;border-color:#6f8ca7}
+.premiumMatch .matchCell{background:#fff;color:#142638;font-weight:650;line-height:1.55;border-color:#c5d2de}
+.premiumMatch .matchCell:nth-child(4n+3),.premiumMatch .matchCell:nth-child(4n+4){background:#f1f6fa}
+.matchingIntro{font-weight:750;margin-bottom:8px}.matchingTail{font-weight:800;color:#0b3b75;margin-top:10px}
+@media(max-width:640px){.premiumMatch{font-size:14px}.premiumMatch .matchHead,.premiumMatch .matchCell{padding:9px 8px}.matchingIntro,.matchingTail{font-size:15px}}
