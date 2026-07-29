@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ksr-plus-sprint7-parser-integration-v1-20260729';
+const CACHE_NAME = 'ksr-plus-sprint8-parser-controller-v1';
 const APP_SHELL = [
   './offline.html', './manifest.json', './icon-192.png', './icon-512.png'
 ];

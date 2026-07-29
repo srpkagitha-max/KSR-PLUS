@@ -475,3 +475,18 @@ body.finalValidationOpen{overflow:hidden}
 .finalValidationActions{position:sticky;bottom:-20px;background:#fff;border-top:1px solid #dce8e3;margin:18px -20px -20px;padding:14px 20px;display:flex;justify-content:flex-end;gap:10px}
 .finalValidationActions button:disabled{opacity:.45;cursor:not-allowed}
 @media(max-width:700px){.finalValidationModal{padding:8px}.finalValidationDialog{padding:14px;border-radius:16px;max-height:96vh}.finalValidationSummary{grid-template-columns:repeat(2,minmax(0,1fr))}.finalValidationStatus{align-items:flex-start;flex-direction:column}.finalValidationActions{margin:16px -14px -14px;padding:12px 14px;flex-direction:column}.finalValidationActions button{width:100%}}
+
+
+/* SPRINT 6 · SAFE FINAL SAVE */
+.finalSaveProgress{margin-top:14px;border:1px solid #cbd5e1;border-radius:16px;padding:14px;background:#f8fafc}
+.finalSaveProgress.running{border-color:#93c5fd;background:#eff6ff}.finalSaveProgress.success{border-color:#86efac;background:#f0fdf4}.finalSaveProgress.failed{border-color:#fca5a5;background:#fef2f2}
+.finalSaveProgressHead{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:10px}.finalSaveProgressHead b{font-size:15px}.finalSaveProgressHead span{font-size:12px;font-weight:800}
+.finalSaveProgressBar{height:9px;background:#dbe5ee;border-radius:999px;overflow:hidden}.finalSaveProgressBar>i{display:block;height:100%;width:0;background:#1d70b7;transition:width .25s ease}
+.finalSaveSteps{display:grid;gap:7px;margin-top:12px}.finalSaveStep{display:flex;gap:9px;align-items:flex-start;padding:8px 10px;border-radius:10px;background:#fff;border:1px solid #e2e8f0;font-size:13px}.finalSaveStep.done{border-color:#bbf7d0;color:#166534}.finalSaveStep.active{border-color:#93c5fd;color:#1e40af;font-weight:800}.finalSaveStep.failed{border-color:#fecaca;color:#991b1b}
+.finalSaveSuccess{margin-top:12px;padding:12px;border-radius:12px;background:#dcfce7;color:#166534;font-weight:800}.finalSaveFailure{margin-top:12px;padding:12px;border-radius:12px;background:#fee2e2;color:#991b1b;font-weight:800;overflow-wrap:anywhere}
+body.examSaveLocked .finalValidationActions button,body.examSaveLocked #saveGenerateBtn{pointer-events:none;opacity:.6}
+/* Sprint 8 standalone parser controller */
+.sprint8HealthGrid .healthMetric{border:0;background:transparent;text-align:left;padding:0;font:inherit;color:inherit;cursor:pointer}
+.sprint8IssueList{display:grid;gap:8px;margin-top:14px}
+.sprint8IssueList button{width:100%;text-align:left;border:1px solid #f3b6b6;background:#fff7f7;color:#8b1e1e;border-radius:12px;padding:10px 12px}
+.activeHealthQuestion{outline:4px solid rgba(22,163,74,.28);scroll-margin-top:20px}
