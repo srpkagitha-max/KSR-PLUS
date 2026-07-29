@@ -13,8 +13,14 @@ const MARK_CHARS = '●⚫•⬤◉✅✓✔☑★☆✦✧❇❎❌⭕🔴🟢�
 const MARK_RE = new RegExp(`[${MARK_CHARS}]`, 'u');
 const MARKS_GLOBAL = new RegExp(`[${MARK_CHARS}]`, 'gu');
 const LETTERS = '(?:[A-D]|ఎ|ఏ|బి|బీ|సి|సీ|డి|డీ)';
-const LETTER_OPTION_RE = new RegExp(`^\\(?(${LETTERS})\\)?(?:\\s*[\\).:\\-]\\s*|\\s+)(.*)$`, 'iu');
-const NUMBER_OPTION_RE = /^\(?([1-4])\)?\s*[\)\.:\-]\s*(.*)$/u;
+// Supports `(A) text`, `A) text`, `A. text`, and no-space forms such as
+// `(C)(ii), (iii) మాత్రమే`. Missing this form caused the following question
+// to be merged into the current one.
+const LETTER_OPTION_RE = new RegExp(
+  `^(?:\\((${LETTERS})\\)|(${LETTERS})\\s*[\\).:\-])\\s*(.*)$`,
+  'iu'
+);
+const NUMBER_OPTION_RE = /^(?:\(([1-4])\)|([1-4])\s*[\).:\-])\s*(.*)$/u;
 const Q_PREFIX_RE = /^(?:Q(?:uestion)?|ప్రశ్న)\s*[-:]?\s*(\d{1,4})\s*[\.:\-) ]*\s*(.*)$/iu;
 const Q_NUMBER_RE = /^(\d{1,4})\s*(?:\.{1,3}|[:\)])\s*(.*)$/u;
 const ROMAN_RE = /^(?:I|II|III|IV|V|VI|VII|VIII|IX|X|i|ii|iii|iv|v|vi|vii|viii|ix|x)\s*[\)\.:\-]\s*/u;
@@ -115,8 +121,10 @@ function normalizeLines(raw) {
   text = text
     .replace(/\s+((?:ప్రశ్న|Question|Q)\s*\d{1,4}\s*(?:\.{1,3}|[:\)]))/giu, '\n$1')
     .replace(/([^\n])\s+(\d{1,4}\s*\.{1,3}\s*(?=[^0-9\s]))/gu, '$1\n$2')
-    .replace(/([^\n])(?=\(?(?:[A-D]|ఎ|ఏ|బి|బీ|సి|సీ|డి|డీ)\)?\s*[\):]\s*[^\n])/giu, '$1\n')
-    .replace(/([^\n])\s+(\(?(?:[A-D]|ఎ|ఏ|బి|బీ|సి|సీ|డి|డీ)\)?\s*[\).:]\s*)/giu, '$1\n$2')
+    // Split collapsed inline options only at a real option boundary.
+    // Do not search for Telugu aliases inside normal Telugu words: the old
+    // rule split words ending in `డి:` and treated that fragment as option D.
+    .replace(/([^\n])\s+(\([A-D]\)\s*|[A-D]\s*[\).:]\s*)/gu, '$1\n$2')
     .replace(/([^\n])\s+((?:Answer|Ans|Correct\s*Answer|Right\s*Answer|జవాబు|సమాధానం)\s*[:.\-])/giu, '$1\n$2')
     .replace(/((?:Answer|Ans|Correct\s*Answer|Right\s*Answer|జవాబు|సమాధానం)\s*[:.\-]?\s*[A-D1-4](?:\s*[).])?[^\n]*?)\s+(?=(?:ప్రశ్న|Question|Q)\s*\d{1,4}\s*[.):]|\d{1,4}\s*[.):]\s*[^0-9])/giu, '$1\n');
 
@@ -194,9 +202,15 @@ function questionStart(line) {
 
 function optionKeyFromLine(line) {
   let match = String(line || '').match(LETTER_OPTION_RE);
-  if (match) return { scheme: 'letter', key: optionLetter(match[1]), text: match[2] || '' };
+  if (match) {
+    const rawKey = match[1] || match[2];
+    return { scheme: 'letter', key: optionLetter(rawKey), text: match[3] || '' };
+  }
   match = String(line || '').match(NUMBER_OPTION_RE);
-  if (match) return { scheme: 'number', key: toLetter(match[1]), text: match[2] || '' };
+  if (match) {
+    const rawKey = match[1] || match[2];
+    return { scheme: 'number', key: toLetter(rawKey), text: match[3] || '' };
+  }
   return null;
 }
 
