@@ -1,7 +1,7 @@
 <!doctype html><html lang="te"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"><title>KSR ➕ New Exam</title>
-<link rel="stylesheet" href="style.css?v=20260729-new-exam-v1"><link rel="manifest" href="manifest.json"><meta name="theme-color" content="#064a86"></head>
-<body class="newExamBody"><header class="newExamTop"><div><h1>KSR ➕ New Exam</h1><p>Basic Information → Parse → Health → Preview → Save & Codes</p></div><a class="btn gray" href="dashboard.html">← Main Features</a></header>
+<link rel="stylesheet" href="style.css?v=20260729-new-exam-v2"><link rel="manifest" href="manifest.json"><meta name="theme-color" content="#064a86"></head>
+<body class="newExamBody"><header class="newExamTop"><div><h1>KSR ➕ New Exam</h1><p>Basic Information → Multi Subject Parse → Health → Preview → Save & Codes</p></div><a class="btn gray" href="dashboard.html">← Main Features</a></header>
 <main class="newExamWrap"><div id="msg"></div>
 <section class="neCard"><div class="neStep"><span>1</span><div><h2>Basic Information</h2><p>Exam, batch and schedule details</p></div></div>
 <div class="neGrid">
@@ -17,20 +17,22 @@
 <label>Options Shuffle<select id="optionShuffle"><option value="no">No</option><option value="yes">Yes</option></select></label>
 </div><div id="studentLoadNote" class="neNote">Institute and Batch select చేస్తే active students automaticగా load అవుతారు.</div></section>
 
-<section class="neCard"><div class="neStep"><span>2</span><div><h2>Parse Box</h2><p>Paste all questions and verify them</p></div></div>
-<div class="neGrid neGridTwo"><label>Subject Name<input id="subjectName" placeholder="Psychology"></label><label>Questions Enni<input id="questionCount" type="number" value="0" readonly></label></div>
-<label>Questions Paste Box<textarea id="rawBits" rows="13" placeholder="1. Question...\nA) Option\nB) Option ●\nC) Option\nD) Option"></textarea></label>
-<div class="neActions"><button id="parseBtn">Parse Questions</button><button id="clearBtn" class="gray">Clear</button><button id="addQuestionBtn" class="orange">Add Question</button></div>
-<div id="editorPanel" hidden><div class="neEditorHead"><b id="editorTitle">Parsed Questions</b><span>Edit, delete or move questions</span></div><div id="questionEditor"></div></div>
+<section class="neCard"><div class="neStep"><span>2</span><div><h2>Parse Box</h2><p>One exam lo multiple subjects add చేయవచ్చు</p></div></div>
+<div class="neActions neTopActions"><button id="addParserBtn" class="green">＋ Add Parser</button></div>
+<div id="parserList"></div>
 </section>
 
-<section class="neCard"><div class="neStep"><span>3</span><div><h2>Questions Health Card</h2><p>Ready status is required for preview and save</p></div></div>
+<section class="neCard"><div class="neStep"><span>3</span><div><h2>Questions Health Card</h2><p>Subject-wise totals and issue status</p></div></div>
+<div id="subjectHealth" class="subjectHealth"></div>
 <div class="healthSummary"><button class="healthMetric" data-health="total"><span>Total Bits</span><b id="totalBits">0</b></button><button class="healthMetric good" data-health="valid"><span>Valid Bits</span><b id="validBits">0</b></button><button class="healthMetric bad" data-health="issues"><span>Issue Bits</span><b id="issueBits">0</b></button></div>
-<div id="healthStatus" class="neHealthStatus">No questions parsed</div><div id="issueList" hidden></div></section>
+<div id="healthStatus" class="neHealthStatus notReady">No questions added</div><div id="issueList" hidden></div>
+</section>
 
-<section class="neCard"><div class="neStep"><span>4</span><div><h2>Student Exam Preview</h2><p>Exactly how students will see the exam</p></div></div><button id="previewBtn" class="green" disabled>Student Preview</button></section>
-<section class="neCard neFinal"><div class="neStep"><span>5</span><div><h2>Exam Save and Generate Codes</h2><p>Creates active-student and backup login codes</p></div></div><button id="saveBtn" class="saveGenerate" disabled>Save Exam & Generate Codes</button><div id="saveProgress"></div><div id="generatedCodes"></div></section>
+<section class="neCard"><div class="neStep"><span>4</span><div><h2>Student Exam Preview</h2><p>Health card READY అయిన తర్వాత student screen చూడండి</p></div></div><button id="previewBtn" disabled>Student Preview</button></section>
+<section class="neCard"><div class="neStep"><span>5</span><div><h2>Save Exam & Generate Codes</h2><p>Active students + backup codes generate అవుతాయి</p></div></div><button id="saveBtn" class="saveGenerate" disabled>Save Exam & Generate Codes</button><div id="saveProgress"></div><div id="generatedCodes"></div></section>
 </main>
 
-<div id="previewModal" class="neModal" hidden><div class="neModalBox"><div class="neModalHead"><div><b id="previewExamTitle">Exam Preview</b><small id="previewMeta"></small></div><button id="closePreview" class="gray">✕</button></div><div class="studentExamShell"><aside id="previewNav"></aside><section id="previewQuestion"></section></div></div></div>
-<script type="module" src="new-exam.js?v=20260729-new-exam-v1"></script><script src="pwa-register.js"></script></body></html>
+<div id="previewModal" class="neModal" hidden><div class="neModalBox"><div class="neModalHead"><div><b id="previewExamTitle">Student Preview</b><small id="previewMeta"></small></div><button id="closePreview" class="danger">Close</button></div><div class="studentExamShell"><aside id="previewNav"></aside><section id="previewQuestion"></section></div></div></div>
+
+<div id="bankModal" class="neModal" hidden><div class="neModalBox qbPickerBox"><div class="neModalHead"><div><b>Add Questions from Question Bank</b><small>Subject → Class → Lesson → Questions</small></div><button id="closeBank" class="danger">Close</button></div><div class="qbPickerBody"><div id="bankTree" class="bankTree"></div><div class="bankQuestionArea"><div class="neActions"><button id="selectAllBank" class="gray">Select All</button><button id="clearBankSelection" class="gray">Clear Selection</button><button id="addSelectedBank" class="green">Add Selected Questions</button></div><div id="bankQuestions"></div></div></div></div></div>
+<script type="module" src="new-exam.js?v=20260729-new-exam-v2"></script></body></html>
