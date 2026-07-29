@@ -1,7 +1,7 @@
 <!doctype html><html lang="te"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
-<meta http-equiv="Expires" content="0"><title>KSR ➕ Admin</title><link rel="stylesheet" href="style.css?v=20260729-sprint12-ordered-exam-builder-v1">
+<meta http-equiv="Expires" content="0"><title>KSR ➕ Admin</title><link rel="stylesheet" href="style.css?v=20260729-sprint13-create-exam-rebuild-v1">
 <link rel="manifest" href="./manifest.json">
 <meta name="theme-color" content="#064a86">
 <meta name="mobile-web-app-capable" content="yes">
@@ -65,14 +65,14 @@
   <label>Parse Box</label>
   <textarea id="rawBits" class="bits-box" placeholder="1. Question text\nA) Option 1\nB) Option 2 ●\nC) Option 3\nD) Option 4"></textarea>
   <div class="action-row">
-    <button id="parseBtn">Questions Parsed</button>
+    <button id="parseBtn">Parse Questions</button>
     <button type="button" class="gray" id="saveSubjectBtn">Save Subject to Bank</button>
     <button id="addQuestionBtn" type="button" class="gray">+ Add Question</button>
     <button class="gray" id="openBankBtn" type="button">📚 Add from Bank</button>
     
   </div>
 </div>
-<div id="health" class="health-box parserHealthDashboard"></div>
+<section class="card rebuiltHealthSection"><div class="sectionHeadRow"><div><h3>Questions Health</h3><p class="small">Issue Questions button నొక్కి problem ఉన్న question numbersను open చేసి ఒక్కొక్కటిగా clear చేయండి.</p></div></div><div id="health" class="health-box parserHealthDashboard"></div></section>
 <div id="questionEditor"></div>
 <div class="finalExamOrder"><button class="orange" id="previewBtn">1. Student Exam Review</button><button class="green" id="saveGenerateBtn" disabled>2. Save Exam + Generate Codes</button><small id="previewApprovalHint">Student review complete చేసి Approve Exam నొక్కిన తర్వాత Save button active అవుతుంది.</small></div>
 <div id="finalValidationModal" class="finalValidationModal" hidden>

@@ -18,9 +18,9 @@ import {
   $,
   show,
   esc
-} from './app.js?v=20260727-create-exam-core-v4';
+} from './app.js?v=20260729-sprint13-create-exam-rebuild-v1';
 
-import * as Parser from './parser.js?v=20260729-sprint12-ordered-exam-builder-v1';
+import * as Parser from './parser.js?v=20260729-sprint13-create-exam-rebuild-v1';
 
 // Parser compatibility layer: using a namespace import prevents the whole Create Exam
 // module from failing when GitHub temporarily serves an older parser.js that lacks one
@@ -104,6 +104,96 @@ let activeHealthIssue = null;
 
 const LAST_GENERATED_CODES_KEY = 'ksrLastGeneratedCodesV1';
 
+
+const AUTO_SUBJECT_NAMES = new Map([
+  ['psychology', 'Psychology'], ['telugu', 'Telugu'], ['english', 'English'],
+  ['maths', 'Maths'], ['math', 'Maths'], ['mathematics', 'Maths'],
+  ['evs', 'EVS'], ['environmental studies', 'EVS'], ['method', 'Method'], ['methods', 'Method']
+]);
+
+function normalizeHeadingLine(line) {
+  return String(line || '').trim().replace(/[:\-–—]+$/g, '').trim().toLowerCase();
+}
+
+function isQuestionStartLine(line) {
+  return /^\s*(?:ప్రశ్న\s*)?\d{1,3}\s*[.)]\s*\S/u.test(String(line || ''));
+}
+
+function questionStartNumber(line) {
+  const m = String(line || '').match(/^\s*(?:ప్రశ్న\s*)?(\d{1,3})\s*[.)]\s*/u);
+  return m ? Number(m[1]) : null;
+}
+
+function splitGrandTestSubjects(raw, defaultSubject = 'General') {
+  const lines = String(raw || '').replace(/\r/g, '').split('\n');
+  const sections = [];
+  let current = { name: cleanSubjectName(defaultSubject || 'General'), lines: [] };
+  let currentQuestionCount = 0;
+  let previousQuestionNumber = 0;
+
+  const pushCurrent = () => {
+    const text = current.lines.join('\n').trim();
+    if (text) sections.push({ name: current.name, raw: text });
+  };
+
+  for (const originalLine of lines) {
+    const line = originalLine.trim();
+    const heading = AUTO_SUBJECT_NAMES.get(normalizeHeadingLine(line));
+    if (heading) {
+      pushCurrent();
+      current = { name: heading, lines: [] };
+      currentQuestionCount = 0;
+      previousQuestionNumber = 0;
+      continue;
+    }
+    if (/^grand\s*test$/i.test(line)) continue;
+
+    const qNumber = questionStartNumber(line);
+    if (qNumber !== null) {
+      const resetDetected = qNumber === 1 && currentQuestionCount >= 5 && previousQuestionNumber > 1;
+      if (resetDetected) {
+        pushCurrent();
+        let inferred = `Subject ${sections.length + 1}`;
+        const previous = sections.at(-1)?.name || current.name;
+        if (previous === 'English') inferred = 'Maths';
+        else if (previous === 'Maths') inferred = 'EVS';
+        current = { name: inferred, lines: [] };
+        currentQuestionCount = 0;
+      }
+      currentQuestionCount += 1;
+      previousQuestionNumber = qNumber;
+    }
+    current.lines.push(originalLine);
+  }
+  pushCurrent();
+  return sections.filter(section => section.raw && section.raw.match(/(?:ప్రశ్న\s*)?\d{1,3}\s*[.)]/u));
+}
+
+function parseGrandTest(raw, fallbackSubject) {
+  const sections = splitGrandTestSubjects(raw, fallbackSubject);
+  if (sections.length <= 1) return null;
+  const parsedSubjects = [];
+  let combined = [];
+  for (const section of sections) {
+    const result = parseQuestionsDetailed(section.raw, section.name);
+    const sectionQuestions = (result.questions || []).map((q, index) => ({
+      ...q,
+      id: q.id || `q${Date.now()}_${parsedSubjects.length}_${index}`,
+      subject: section.name,
+      options: (q.options || []).map(o => ({ ...o }))
+    }));
+    if (!sectionQuestions.length) continue;
+    parsedSubjects.push({
+      name: section.name,
+      rawBits: section.raw,
+      questions: sectionQuestions,
+      parserDiagnostics: { ...(result.diagnostics || {}), parsedAt: Date.now() }
+    });
+    combined = combined.concat(sectionQuestions);
+  }
+  return parsedSubjects.length > 1 ? { subjects: parsedSubjects, questions: combined } : null;
+}
+
 // Create Exam Core Bridge V3: available even if a later optional enterprise panel fails.
 window.__KSR_CREATE_EXAM_CORE__ = {
   addNewSubjectParser,
@@ -111,6 +201,22 @@ window.__KSR_CREATE_EXAM_CORE__ = {
   parseRawQuestions() {
     const raw = $('rawBits')?.value || '';
     const subject = cleanSubjectName($('subjectName')?.value || 'General');
+    const grand = parseGrandTest(raw, subject);
+    if (grand) {
+      subjects = grand.subjects;
+      activeSubjectIndex = 0;
+      questions = subjects[0].questions.map(q => ({ ...q, options: (q.options || []).map(o => ({ ...o })) }));
+      lastImportSummary = { healthScore: 100, parsedQuestions: grand.questions.length, subjectCount: subjects.length };
+      if ($('subjectName')) $('subjectName').value = subjects[0].name;
+      if ($('rawBits')) $('rawBits').value = subjects[0].rawBits;
+      if ($('subjectQuestionCount')) $('subjectQuestionCount').value = subjects[0].questions.length;
+      renderSubjectTabs(); renderEditor(); renderDuplicateEngine(); renderQuestionTypeAnalyzer(); renderSmartAnalytics(); renderExamQuality(); renderHealth();
+      if ($('questionEditor')) $('questionEditor').dataset.open = '1';
+      if ($('parseBtn')) $('parseBtn').textContent = 'Save Edits & Close';
+      saveDraft();
+      flash(`${grand.questions.length} questions · ${subjects.length} subjects detected ✅`);
+      return { ok: true, count: grand.questions.length, subjects: subjects.length };
+    }
     const result = parseQuestionsDetailed(raw, subject);
     if (!result.questions.length) {
       show('Questions detect avvaledu. Question number + A/B/C/D options format check cheyyandi.', 'err');
@@ -128,13 +234,7 @@ window.__KSR_CREATE_EXAM_CORE__ = {
     currentSubject().rawBits = raw;
     currentSubject().parserDiagnostics = { ...result.diagnostics, parsedAt: Date.now() };
     if ($('subjectQuestionCount')) $('subjectQuestionCount').value = questions.length;
-    renderSubjectTabs();
-    renderEditor();
-    renderDuplicateEngine();
-    renderQuestionTypeAnalyzer();
-    renderSmartAnalytics();
-    renderExamQuality();
-    renderHealth();
+    renderSubjectTabs(); renderEditor(); renderDuplicateEngine(); renderQuestionTypeAnalyzer(); renderSmartAnalytics(); renderExamQuality(); renderHealth();
     if ($('questionEditor')) $('questionEditor').dataset.open = '1';
     if ($('parseBtn')) $('parseBtn').textContent = 'Save Edits & Close';
     saveDraft();
