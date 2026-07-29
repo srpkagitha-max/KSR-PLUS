@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ksr-plus-v6-parser-layout';
+const CACHE_NAME = 'ksr-plus-dashboard-fix-v7';
 const APP_SHELL = [
   './offline.html', './manifest.json', './icon-192.png', './icon-512.png'
 ];
