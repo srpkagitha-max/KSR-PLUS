@@ -1,6 +1,15 @@
 import {
   auth, db, $, show, esc,
-  onAuthStateChanged, signOut,
+  
+const examPublicId = e => e?.examId || e?.examCode || e?.id || '-';
+const examLink = () => new URL('index.html', location.href).href;
+const prettyDate = v => { if(!v)return '-'; const d=v?.toDate?v.toDate():new Date(v); return isNaN(d)?String(v):d.toLocaleString('en-IN',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}); };
+const examMinutes = e => { const a=new Date(e?.startTime),b=new Date(e?.endTime); return !isNaN(a)&&!isNaN(b)?Math.max(1,Math.round((b-a)/60000)):Number(e?.totalMinutes||e?.questionCount||0); };
+function premiumPrint(title, body){
+ const w=window.open('','_blank'); if(!w)return show('Popup allow cheyyandi.','err');
+ w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${esc(title)}</title><style>*{box-sizing:border-box}body{margin:0;background:#eef5fb;color:#123652;font-family:Arial,sans-serif}.sheet{width:794px;max-width:100%;margin:auto;background:white;min-height:1123px;padding:28px}.hero{border:2px solid #bed4e5;border-radius:20px;padding:20px;background:linear-gradient(135deg,#edf7ff,#fff9df)}.brand{display:flex;gap:14px;align-items:center;border-bottom:3px solid #c7dbe9;padding-bottom:14px}.logo{width:55px;height:55px;border-radius:14px;background:#0969b5;color:white;display:grid;place-items:center;font-weight:900}.inst{font-size:28px;font-weight:900;color:#073d70}.sub{font-weight:700;color:#647789;margin-top:5px}.badge{margin:20px auto 15px;width:max-content;border:2px solid #17649b;border-radius:10px;padding:8px 18px}.stats,.summary{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.stat,.summary div{border:1px solid #cadde9;border-radius:12px;background:#fff;padding:11px;text-align:center}.stat small{display:block;color:#66798b;margin-bottom:7px;font-weight:700}.instructions{margin-top:15px;border:1px solid #e3c65e;background:#fffdf1;border-radius:12px;padding:14px}.instructions h3{margin:0 0 8px;color:#07518c}.instructions p{margin:7px 0}.link{margin-top:13px;background:#eaf8ee;border-left:6px solid #24a45b;border-radius:9px;padding:11px;word-break:break-all}table{width:100%;border-collapse:collapse;margin-top:16px;font-size:13px}th{background:#0765ad;color:#fff;padding:10px;text-align:left}td{border:1px solid #acc4d7;padding:9px}tr:nth-child(even) td{background:#f4f9fd}.code{font-weight:900;letter-spacing:1px}.summary{margin:16px 0}.summary b{display:block;font-size:23px;margin-top:5px}.footer{text-align:center;color:#718496;font-size:11px;margin-top:16px}@page{size:A4;margin:0}@media print{body{background:#fff}.sheet{width:100%;padding:22px}}</style></head><body>${body}<script>setTimeout(()=>window.print(),450)<\/script></body></html>`); w.document.close();
+}
+onAuthStateChanged, signOut,
   collection, getDocs, query, where, doc, getDoc,
   updateDoc, deleteDoc, writeBatch, serverTimestamp
 } from './app.js?v=20260729-dashboard-fix-v7';
@@ -10,6 +19,8 @@ let lastExam = null;
 let lastCodes = [];
 let allSavedExams = [];
 let savedView = 'active';
+let lastResultRows=[];
+let lastResultAccess=[];
 
 const norm = value => String(value || '').trim().toUpperCase();
 const fmt = value => {
@@ -119,16 +130,17 @@ $('copyCodes')?.addEventListener('click', async () => {
   show('Codes copied ✅');
 });
 
-$('printCodes')?.addEventListener('click', () => {
-  if (!lastCodes.length) return show('Codes levu.', 'err');
-  window.print();
+$('printCodes')?.addEventListener('click',()=>{
+ if(!lastExam||!lastCodes.length)return show('Munduga codes search cheyyandi.','err');
+ const id=examPublicId(lastExam),inst=lastExam.instituteName||'KSR Online Exams',batch=lastExam.batchName||'-';
+ const rows=lastCodes.map((x,i)=>`<tr><td>${i+1}</td><td><b>${esc(x.studentName||(x.isBackup?'Backup Code':'Student'))}</b></td><td class="code">${esc(x.code)}</td><td></td></tr>`).join('');
+ premiumPrint(id+' Codes',`<main class="sheet"><section class="hero"><div class="brand"><div class="logo">KSR</div><div><div class="inst">${esc(inst)}</div><div class="sub">${esc(id)} • ${esc(batch)}</div></div></div><div class="badge">Exam ID: <b>${esc(id)}</b></div><div class="stats"><div class="stat"><small>Exam Starts</small><b>${esc(prettyDate(lastExam.startTime))}</b></div><div class="stat"><small>Login Before</small><b>${esc(prettyDate(lastExam.loginBefore))}</b></div><div class="stat"><small>Total Bits</small><b>${Number(lastExam.questionCount||0)}</b></div><div class="stat"><small>Exam Time</small><b>${examMinutes(lastExam)} Minutes</b></div></div><div class="instructions"><h3>Student Login Instructions</h3><p><b>Name:</b> మీ పేరు ఇవ్వండి</p><p><b>Exam ID:</b> ${esc(id)} ఇవ్వండి</p><p><b>Exam Code:</b> కింద ఉన్న codes లో మీకు కేటాయించిన code ఇవ్వండి</p><p><b>Phone No:</b> మీ phone number ఇవ్వండి</p></div><div class="link"><b>Exam Link:</b> ${esc(examLink())}</div></section><table><thead><tr><th>S.No</th><th>Student Name</th><th>Exam Code</th><th>Signature</th></tr></thead><tbody>${rows}</tbody></table><div class="footer">Generated by KSR Online Exams</div></main>`);
 });
-
-$('shareWhatsapp')?.addEventListener('click', () => {
-  if (!lastCodes.length) return show('Munduga codes search cheyyandi.', 'err');
-  const id = lastExam.examId || lastExam.examCode || lastExam.id;
-  const text = `KSR Exam\nExam ID: ${id}\n\n` + lastCodes.map((x,i) => `${i+1}. ${x.studentName || 'Student'} - ${x.code}`).join('\n');
-  window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank');
+$('shareWhatsapp')?.addEventListener('click',()=>{
+ if(!lastExam||!lastCodes.length)return show('Munduga codes search cheyyandi.','err');
+ const id=examPublicId(lastExam),inst=lastExam.instituteName||'KSR Online Exams',batch=lastExam.batchName||'-';
+ const text=`🏆 KSR Online Exams\n\nInstitute: ${inst}\nBatch: ${batch}\nExam: ${lastExam.title||id}\nExam ID: ${id}\nStart: ${prettyDate(lastExam.startTime)}\nLogin Before: ${prettyDate(lastExam.loginBefore)}\nQuestions: ${Number(lastExam.questionCount||0)}\nTime: ${examMinutes(lastExam)} Minutes\n\nExam Link: ${examLink()}`;
+ window.open('https://wa.me/?text='+encodeURIComponent(text),'_blank');
 });
 
 async function loadResults() {
@@ -165,6 +177,7 @@ async function loadResults() {
     const writing = accessRows.filter(x => ['inProgress','writing','started'].includes(x.status)).length;
     const submitted = accessRows.filter(x => ['completed','submitted'].includes(x.status)).length;
     const notOpened = Math.max(0, accessRows.length-writing-submitted);
+    lastExam=exam; lastResultRows=rows; lastResultAccess=accessRows;
 
     $('resultsBox').innerHTML = `
       <div class="qcard"><h3>${esc(exam.title || examPublicId)}</h3>
@@ -190,7 +203,13 @@ async function loadResults() {
 
 $('loadResults')?.addEventListener('click', loadResults);
 $('resultExamId')?.addEventListener('keydown', e => { if(e.key==='Enter') loadResults(); });
-$('printResults')?.addEventListener('click', () => window.print());
+$('printResults')?.addEventListener('click',()=>{
+ if(!lastExam)return show('Munduga results search cheyyandi.','err');
+ const id=examPublicId(lastExam),inst=lastExam.instituteName||'KSR Online Exams',batch=lastExam.batchName||'-',a=lastResultAccess;
+ const writing=a.filter(x=>['inProgress','writing','started'].includes(x.status)).length,submitted=a.filter(x=>['completed','submitted'].includes(x.status)).length,notOpened=Math.max(0,a.length-writing-submitted);
+ const rows=lastResultRows.length?lastResultRows.map((r,i)=>`<tr><td>${i+1}</td><td><b>${esc(r.studentName)}</b></td><td>${r.score}/${r.total}</td><td>${r.total?Math.round(r.score/r.total*100):0}%</td><td>${esc(fmt(r.submittedAt))}</td></tr>`).join(''):'<tr><td colspan="5" style="text-align:center;padding:30px">ఇంకా ఎవరూ submit చేయలేదు.</td></tr>';
+ premiumPrint(id+' Results',`<main class="sheet"><section class="hero"><div class="brand"><div class="logo">KSR</div><div><div class="inst">${esc(inst)}</div><div class="sub">Results & Ranks • ${esc(batch)}</div></div></div><div class="badge">Exam ID: <b>${esc(id)}</b></div><div class="stats"><div class="stat"><small>Exam Starts</small><b>${esc(prettyDate(lastExam.startTime))}</b></div><div class="stat"><small>Total Bits</small><b>${Number(lastExam.questionCount||0)}</b></div><div class="stat"><small>Exam Time</small><b>${examMinutes(lastExam)} Minutes</b></div><div class="stat"><small>Results</small><b>${lastResultRows.length}</b></div></div></section><div class="summary"><div>Total Students<b>${a.length}</b></div><div>Writing<b>${writing}</b></div><div>Submitted<b>${submitted}</b></div><div>Not Opened<b>${notOpened}</b></div></div><table><thead><tr><th>Rank</th><th>Student Name</th><th>Marks</th><th>%</th><th>Submitted</th></tr></thead><tbody>${rows}</tbody></table><div class="footer">${esc(inst)} • ${esc(id)} • KSR Online Exams</div></main>`);
+});
 
 function examBucket(exam) {
   if (exam.status === 'deleted' || exam.deletedAt) return 'deleted';
