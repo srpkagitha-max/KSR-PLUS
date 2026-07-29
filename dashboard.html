@@ -1,7 +1,7 @@
 <!doctype html><html lang="te"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
-<meta http-equiv="Expires" content="0"><title>KSR ➕ Admin</title><link rel="stylesheet" href="style.css?v=20260729-sprint13-create-exam-rebuild-v1">
+<meta http-equiv="Expires" content="0"><title>KSR ➕ Admin</title><link rel="stylesheet" href="style.css?v=20260729-create-exam-removed-v1">
 <link rel="manifest" href="./manifest.json">
 <meta name="theme-color" content="#064a86">
 <meta name="mobile-web-app-capable" content="yes">
@@ -16,7 +16,6 @@
 <section id="adminHome" class="adminHomePanel">
   <div class="adminWelcome"><h2>Main Features</h2><p>Meeku kavalsina option ni press cheyyandi.</p></div>
   <div class="featureGrid">
-    <button class="featureCard featureBlue" data-open="examPanel"><span>📝</span><b>Create Exam</b><small>Questions paste, preview, save & codes</small></button>
     <button class="featureCard featureGold" data-open="codesPanel"><span>🔐</span><b>Generated Codes</b><small>Copy, PDF and WhatsApp share</small></button>
     <button class="featureCard featureGreen" data-open="resultsPanel"><span>🏆</span><b>Results & Ranks</b><small>Ranks, summary and PDF</small></button>
     <button class="featureCard featurePurple" data-open="savedPanel"><span>🔎</span><b>Search Exams</b><small>Search or load all saved exams</small></button>
@@ -24,69 +23,6 @@
     <a class="featureCard featureRed" href="live-monitor.html"><span>📡</span><b>Live Monitor</b><small>Batch-wise exam status</small></a>
     <a class="featureCard featureBlue" href="question-bank.html"><span>📚</span><b>Question Bank</b><small>Subject, class and lesson folders</small></a>
   </div>
-</section>
-
-<section id="examPanel" class="adminWorkPanel" hidden>
-<button class="backHomeBtn" type="button">← Main Features</button>
-<div class="card"><div class="sectionHeadRow"><div><h2>Create Daily Exam</h2><p class="small">Fresh exam form. Old exam data automatic ga load avvadu.</p></div><div class="action-row compact"><button type="button" class="gray" id="recoverDraftBtn">Recover Draft</button><button type="button" class="danger" id="clearExamFormBtn">Clear Form</button></div></div><div class="grid two">
-<div><label>Institute</label><select id="instituteId"></select><input id="instituteName" type="hidden"></div>
-<div><label>Batch</label><select id="batchId"></select></div>
-<div><label>Exam ID</label><input id="examId" placeholder="TEST-101"></div>
-<div><label>Exam Name (optional)</label><input id="examTitle" placeholder="Daily Grand Test"></div>
-<div><label>Active Students</label><input id="activeStudentCount" type="number" value="0" readonly></div>
-<div><label>Extra Backup Codes</label><input id="backupCodeCount" type="number" min="0" max="100" value="10"></div>
-<div><label>Total Codes</label><input id="codeCount" type="number" min="1" max="1000" value="10" readonly></div>
-<div><label>Start Time</label><input id="startTime" type="datetime-local"></div>
-<div><label>End Time</label><input id="endTime" type="datetime-local"></div>
-<div><label>Login Before Time</label><input id="loginBefore" type="datetime-local"></div>
-<div><label>Seconds for Each Question</label><input id="secondsPerQuestion" type="number" min="5" max="600" value="60"></div>
-<div><label>Status</label><select id="status"><option value="active">Active</option><option value="draft">Draft</option><option value="closed">Closed</option></select></div>
-<div><label>Question Shuffle</label><select id="questionShuffle"><option value="none">No Shuffle</option><option value="subject" selected>Subject-wise Shuffle</option><option value="full">Full Shuffle</option></select></div>
-<div><label>Option Shuffle</label><select id="optionShuffle"><option value="no" selected>No</option><option value="yes">Yes</option></select></div>
-<div><label>Student Randomization</label><select id="studentRandomization"><option value="same">Same Order for All</option><option value="different" selected>Different Order per Student</option></select></div>
-<div><label>Class / Exam Category</label><input id="qbClass" placeholder="Class 8 / DSC / TET" value="General"></div>
-<div><label>Lesson / Topic</label><input id="qbLesson" placeholder="Lesson 1 / Learning" value="General"></div>
-</div>
-
-<div class="multiSubjectBuilder">
-  <div class="subjectBuilderHead">
-    <div>
-      <h3>+ Parser</h3>
-      <p class="small">Subject name enter chesi bits paste చేయండి. Parse చేసిన తర్వాత subjectను bankకు save చేసి next subject add చేయండి.</p>
-    </div>
-    <button type="button" class="gray" id="addSubjectBtn">+ Add Subject Parser</button>
-  </div>
-  <div id="subjectTabs" class="subjectTabs"></div>
-  <div class="grid two subjectMetaGrid">
-    <div><label>Subject Name</label><input id="subjectName" placeholder="Telugu / English / Maths"></div>
-    <div><label>Current Subject Questions</label><input id="subjectQuestionCount" value="0" readonly></div>
-  </div>
-  <input id="qbSubject" type="hidden" value="General">
-  <label>Parse Box</label>
-  <textarea id="rawBits" class="bits-box" placeholder="1. Question text\nA) Option 1\nB) Option 2 ●\nC) Option 3\nD) Option 4"></textarea>
-  <div class="action-row">
-    <button id="parseBtn">Parse Questions</button>
-    <button type="button" class="gray" id="saveSubjectBtn">Save Subject to Bank</button>
-    <button id="addQuestionBtn" type="button" class="gray">+ Add Question</button>
-    <button class="gray" id="openBankBtn" type="button">📚 Add from Bank</button>
-    
-  </div>
-</div>
-<section class="card rebuiltHealthSection"><div class="sectionHeadRow"><div><h3>Questions Health</h3><p class="small">Issue Questions button నొక్కి problem ఉన్న question numbersను open చేసి ఒక్కొక్కటిగా clear చేయండి.</p></div></div><div id="health" class="health-box parserHealthDashboard"></div></section>
-<div id="questionEditor"></div>
-<div class="finalExamOrder"><button class="orange" id="previewBtn">1. Student Exam Review</button><button class="green" id="saveGenerateBtn" disabled>2. Save Exam + Generate Codes</button><small id="previewApprovalHint">Student review complete చేసి Approve Exam నొక్కిన తర్వాత Save button active అవుతుంది.</small></div>
-<div id="finalValidationModal" class="finalValidationModal" hidden>
-  <div class="finalValidationBackdrop" data-close-final-validation></div>
-  <section class="finalValidationDialog" role="dialog" aria-modal="true" aria-labelledby="finalValidationTitle">
-    <div class="finalValidationHeader"><div><h2 id="finalValidationTitle">Final Exam Validation</h2><p>Save mundu exam details anni verify cheyyandi.</p></div><button type="button" class="gray" id="closeFinalValidationBtn">✕</button></div>
-    <div id="finalValidationContent"></div>
-    <div id="finalSaveProgress" class="finalSaveProgress" hidden></div>
-    <div class="finalValidationActions"><button type="button" class="gray" id="editFinalValidationBtn">Back to Edit</button><button type="button" class="green" id="confirmFinalSaveBtn">Confirm Save + Generate Codes</button></div>
-  </section>
-</div>
-<div id="bankPicker" class="card bankPicker" hidden><div class="qhead"><div><h3>Smart Add from Question Bank</h3><p class="small">Subject, class, lesson లేదా keyword batti questions select cheyyandi.</p></div><button type="button" class="gray" id="closeBankBtn">Close</button></div><div class="grid four"><input id="bankSearchText" placeholder="Keyword / Question ID"><input id="bankSubjectFilter" placeholder="Subject"><input id="bankClassFilter" placeholder="Class / Category"><input id="bankLessonFilter" placeholder="Lesson / Topic"></div><div class="action-row"><button type="button" id="loadBankBtn">Load Questions</button><button type="button" class="gray" id="selectAllBankBtn">Select All</button><button type="button" class="gray" id="clearBankSelectionBtn">Clear</button><button type="button" class="green" id="addSelectedBankBtn">Add Selected to Exam</button></div><div id="bankPickerStats" class="health-box"></div><div id="bankPickerList"><p class="small">Filters enter chesi Load Questions nokkandi.</p></div></div>
-</div>
-<div class="card" id="previewCard" hidden><div class="studentPreviewTop"><div><h2>Student Exam Review</h2><p class="small">Student screenలో exam ఎలా కనిపిస్తుందో అలాగే review చేయండి.</p></div><button type="button" class="gray" id="closePreviewBtn">Close Review</button></div><div class="preview-exam"><div class="preview-head"><b id="previewTitle">Exam Preview</b><span id="previewTimer">00:00</span></div><div id="previewContent"></div><div id="previewNav" class="palette"></div><div class="previewApprovalBar"><button type="button" class="green" id="approvePreviewBtn">Approve Exam Review</button><span id="previewApprovalStatus">Not approved</span></div></div></div>
 </section>
 
 <section id="codesPanel" class="adminWorkPanel" hidden>
@@ -111,13 +47,11 @@
 (function(){
  const home=document.getElementById('adminHome');
  const panels=[...document.querySelectorAll('.adminWorkPanel')];
- function openPanel(id){home.hidden=true;panels.forEach(p=>p.hidden=p.id!==id);if(id==='examPanel')window.dispatchEvent(new CustomEvent('ksr:new-exam'));window.scrollTo({top:0,behavior:'smooth'});}
+ function openPanel(id){home.hidden=true;panels.forEach(p=>p.hidden=p.id!==id);window.scrollTo({top:0,behavior:'smooth'});}
  document.querySelectorAll('[data-open]').forEach(b=>b.addEventListener('click',()=>openPanel(b.dataset.open)));
  document.querySelectorAll('.backHomeBtn').forEach(b=>b.addEventListener('click',()=>{panels.forEach(p=>p.hidden=true);home.hidden=false;window.scrollTo({top:0,behavior:'smooth'});}));
 })();
 </script>
 <script type="module" src="admin-daily.js?v=20260729-sprint12-ordered-exam-builder-v1"></script>
-<script type="module" src="parser-controller.js?v=20260729-sprint12-ordered-exam-builder-v1"></script>
-<script type="module" src="create-exam-recovery.js?v=20260729-sprint12-ordered-exam-builder-v1"></script>
 <script src="./pwa-register.js?v=20260729-sprint12-ordered-exam-builder-v1"></script>
 </body></html>

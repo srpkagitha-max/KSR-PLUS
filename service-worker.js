@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ksr-plus-sprint13-create-exam-rebuild-v1';
+const CACHE_NAME = 'ksr-plus-create-exam-removed-v1';
 const APP_SHELL = [
   './offline.html', './manifest.json', './icon-192.png', './icon-512.png'
 ];

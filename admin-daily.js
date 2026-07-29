@@ -18,9 +18,9 @@ import {
   $,
   show,
   esc
-} from './app.js?v=20260729-sprint13-create-exam-rebuild-v1';
+} from './app.js?v=20260729-create-exam-removed-v1';
 
-import * as Parser from './parser.js?v=20260729-sprint13-create-exam-rebuild-v1';
+import * as Parser from './parser.js?v=20260729-create-exam-removed-v1';
 
 // Parser compatibility layer: using a namespace import prevents the whole Create Exam
 // module from failing when GitHub temporarily serves an older parser.js that lacks one
@@ -816,10 +816,12 @@ onAuthStateChanged(auth, async u => {
   }
 
   user = u;
-  setDefaultTimes();
-  await loadMasters();
-  clearCreateForm(false);
-  loadActiveSubject();
+  if ($('examPanel')) {
+    setDefaultTimes();
+    await loadMasters();
+    clearCreateForm(false);
+    loadActiveSubject();
+  }
   restoreGeneratedCodes();
 });
 
