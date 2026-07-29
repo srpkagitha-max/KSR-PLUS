@@ -1,4 +1,4 @@
-const KSR_PWA_VERSION = '2026.07.29-new-exam-v5-merged';
+const KSR_PWA_VERSION = '2026.07.29-new-exam-v6-merged';
 
 if ('serviceWorker' in navigator) {
   let reloadingForNewWorker = false;

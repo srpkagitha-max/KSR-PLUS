@@ -387,7 +387,9 @@ function parseBlock(lines, index, defaultSubject) {
     }
   }
 
-  const questionText = cleanDanglingDelimiters(compactQuestion(questionLines));
+  let questionText = cleanDanglingDelimiters(compactQuestion(questionLines));
+  // Remove a duplicated inner question label such as `1. ప్రశ్న 1 ...` in student view.
+  questionText = questionText.replace(/^(?:ప్రశ్న|Question|Q)\s*\d{1,4}\s*[.):-]?\s*/iu, '').trim();
   return {
     id: `q${Date.now()}_${index}`,
     sourceNumber: first?.number || index + 1,

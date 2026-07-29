@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ksr-plus-new-exam-v5-merged';
+const CACHE_NAME = 'ksr-plus-v6-parser-layout';
 const APP_SHELL = [
   './offline.html', './manifest.json', './icon-192.png', './icon-512.png'
 ];

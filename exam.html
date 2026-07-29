@@ -82,18 +82,25 @@ window.addEventListener('online',()=>{show('Internet reconnected. Answers syncin
 function renderSubjects(){let subs=[...new Set(qs.map(q=>q.subject||'General'))];document.body.classList.toggle('singleSubjectExam',subs.length===1);$('subjectTabs').innerHTML=subs.map(s=>`<button class="subTab" data-s="${esc(s)}">${esc(s)} (${qs.filter(q=>(q.subject||'General')===s).length})</button>`).join('');document.querySelectorAll('.subTab').forEach(b=>b.onclick=()=>{let i=qs.findIndex(q=>(q.subject||'General')===b.dataset.s); if(i>=0){saveTime();idx=i;render();}})}
 function render(){let q=qs[idx];visited[idx]=true;qStart=Date.now();$('qNo').textContent=`Question ${idx+1}`;$('totalQuestions').textContent=qs.length;$('progressText').textContent=`${idx+1} / ${qs.length}`;$('progressBar').style.width=`${Math.round(((idx+1)/Math.max(1,qs.length))*100)}%`;$('qSubject').textContent=q.subject||'General';$('qbox').innerHTML=formatQuestion(q.question||'');$('options').innerHTML=(q.options||[]).map(o=>`<label class="optionCard ${ans[idx]===o.key?'selected':''}"><input type="radio" name="a" value="${o.key}" ${ans[idx]===o.key?'checked':''}><b>${o.key}</b><span>${esc(o.text||'')}</span></label>`).join('');document.querySelectorAll('input[name=a]').forEach(r=>r.onchange=()=>{ans[idx]=r.value;scheduleSessionSave();updateSubjectProgress(q.subject||'General');renderPaletteOnly();document.querySelectorAll('.optionCard').forEach(c=>c.classList.remove('selected'));r.closest('.optionCard').classList.add('selected')});updateSubjectProgress(q.subject||'General');document.querySelectorAll('.subTab').forEach(b=>b.classList.toggle('active',b.dataset.s===(q.subject||'General')));$('prev').disabled=idx===0 || exam.allowPrevious===false;renderPaletteOnly();scheduleSessionSave();}
 function formatQuestion(text){
-  const t=String(text||'').trim();
-  let safe=esc(t);
-  safe=safe.replace(/\s+(?=(?:I{1,4}|i{1,4})[.:]\s)/g,'\n');
-  safe=safe.replace(/\s+(?=ప్రకటన\s*\d+\s*[:.])/g,'\n');
-  // Put numbered/roman statements one below another: (1), (2), (i), (ii) ...
-  safe=safe.replace(/\s+(?=\((?:\d{1,2}|[ivxIVX]{1,6})\)\s*)/g,'\n');
-  safe=safe.replace(/\s+(?=జాబితా\s*-?\s*(?:1|2|I|II)\s*:)/gi,'\n');
-  safe=safe.replace(/,\s*(?=(?:A|B|C|D|a|b|c|d|i|ii|iii|iv|1|2|3|4)[.)]\s)/g,'\n');
-  safe=safe.replace(/\n/g,'<br>');
-  safe=safe.replace(/((?:I{1,4}|i{1,4})[.:])/g,'<b class="stmtTitle">$1</b>');
-  safe=safe.replace(/(ప్రకటన\s*\d+\s*[:.])/g,'<b class="stmtTitle">$1</b>');
-  return safe;
+  let t=String(text||'').replace(/\r/g,'').trim();
+  // Remove duplicated label saved by older parser builds.
+  t=t.replace(/^(?:ప్రశ్న|Question|Q)\s*\d{1,4}\s*[.):-]?\s*/iu,'');
+  // Force every statement/list item onto its own line, even when WhatsApp paste
+  // or an older saved exam collapsed all whitespace into one paragraph.
+  t=t
+    .replace(/[ \t]+(?=(?:I|II|III|IV|V|VI|VII|VIII|IX|X|i|ii|iii|iv|v|vi|vii|viii|ix|x)\s*[.):-]\s*)/gu,'\n')
+    .replace(/[ \t]+(?=\((?:\d{1,2}|[ivxIVX]{1,6})\)\s*)/gu,'\n')
+    .replace(/[ \t]+(?=(?:ప్రకటన|వాక్యం|వ్యాఖ్య|Statement)\s*(?:I|II|III|IV|\d+)\s*[:.)-])/giu,'\n')
+    .replace(/[ \t]+(?=జాబితా\s*-?\s*(?:1|2|I|II)\s*:)/giu,'\n')
+    .replace(/\n{2,}/g,'\n');
+  const lines=t.split('\n').map(x=>x.trim()).filter(Boolean);
+  return lines.map(line=>{
+    const safe=esc(line);
+    if(/^(?:I|II|III|IV|V|VI|VII|VIII|IX|X|i|ii|iii|iv|v|vi|vii|viii|ix|x)\s*[.):-]/u.test(line) || /^\((?:\d{1,2}|[ivxIVX]{1,6})\)/u.test(line) || /^(?:ప్రకటన|వాక్యం|వ్యాఖ్య|Statement)\s*(?:I|II|III|IV|\d+)\s*[:.)-]/iu.test(line)){
+      return `<div class="statementLine">${safe}</div>`;
+    }
+    return `<div class="questionLine">${safe}</div>`;
+  }).join('');
 }
 function formatMatching(text){
   const parts=text.split(/జాబితా\s*-?\s*(?:2|II)\s*:/i);
