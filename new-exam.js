@@ -1,6 +1,12 @@
-import { db, auth, onAuthStateChanged, collection, getDocs, getDoc, doc, setDoc, writeBatch, serverTimestamp, esc } from './app.js?v=20260729-new-exam-v2';
-import { parseQuestionsDetailed, blankQuestion } from './parser.js?v=20260729-parser-gap-fix';
+// New Exam boots its local UI first. Firebase and parser modules are loaded
+// independently afterwards, so one failed import can never hide the parser box.
+let db=null, auth=null, onAuthStateChanged=null, collection=null, getDocs=null,
+    getDoc=null, doc=null, setDoc=null, writeBatch=null, serverTimestamp=null;
+let parseQuestionsDetailed=null, blankQuestion=null;
 const $=id=>document.getElementById(id);
+const esc=(s='')=>String(s).replace(/[&<>"']/g,c=>({
+  '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+}[c]));
 let institutes=[],batches=[],students=[],questions=[],parsers=[],previewIndex=0,bankQuestions=[],activeBankParserId='',selectedBankPath={subject:'',className:'',lesson:''};
 const norm=v=>String(v||'').trim();
 function message(text,type='ok'){const m=$('msg');m.className=`msg ${type==='err'?'err':type==='warn'?'warn':'ok'}`;m.textContent=text;}
@@ -14,7 +20,7 @@ function renderParsers(){if(!parsers.length){$('parserList').innerHTML='<div cla
  bindParserEvents();}
 function renderEditorHtml(pid){const qs=parserQuestions(pid);if(!qs.length)return '<div class="neNote">No questions in this subject.</div>';return `<div class="neEditorHead"><b>Parsed Questions</b><span>Edit, delete or move</span></div>${qs.map((q,local)=>{const global=questions.indexOf(q);return `<article class="neQuestion" id="question-${q.id}"><div class="neQuestionTop"><b>Q${local+1} · ${esc(q.subject)}</b><div><button class="mini gray" data-up="${q.id}" ${local===0?'disabled':''}>↑</button><button class="mini gray" data-down="${q.id}" ${local===qs.length-1?'disabled':''}>↓</button><button class="mini danger" data-delete="${q.id}">Delete</button></div></div><label>Question<textarea data-q="${q.id}" rows="3">${esc(q.question)}</textarea></label><div class="neOptions">${q.options.map((o,j)=>`<label>${o.key}<input data-opt="${q.id}" data-j="${j}" value="${esc(o.text)}"></label>`).join('')}</div><label>Correct Answer<select data-answer="${q.id}">${['A','B','C','D'].map(k=>`<option ${q.answer===k?'selected':''}>${k}</option>`).join('')}</select></label><div class="questionIssueText">${issuesFor(q).map(x=>`⚠ ${esc(x)}`).join(' · ')||'✅ Valid question'}</div></article>`}).join('')}`;}
 function bindParserEvents(){document.querySelectorAll('[data-subject-input]').forEach(e=>e.oninput=()=>{const p=parsers.find(x=>x.id===e.dataset.subjectInput);p.subject=e.value;questions.filter(q=>q.parserId===p.id).forEach(q=>q.subject=norm(e.value)||'General');updateHealth();});document.querySelectorAll('[data-raw]').forEach(e=>e.oninput=()=>{parsers.find(x=>x.id===e.dataset.raw).raw=e.value;});document.querySelectorAll('[data-parse]').forEach(b=>b.onclick=()=>parseOrSave(b.dataset.parse));document.querySelectorAll('[data-clear]').forEach(b=>b.onclick=()=>clearParser(b.dataset.clear));document.querySelectorAll('[data-add-question]').forEach(b=>b.onclick=()=>addBlankQuestion(b.dataset.addQuestion));document.querySelectorAll('[data-add-bank]').forEach(b=>b.onclick=()=>openBank(b.dataset.addBank));document.querySelectorAll('[data-remove-parser]').forEach(b=>b.onclick=()=>removeParser(b.dataset.removeParser));document.querySelectorAll('[data-q]').forEach(e=>e.oninput=()=>{const q=questions.find(x=>x.id===e.dataset.q);q.question=e.value;updateHealth();});document.querySelectorAll('[data-opt]').forEach(e=>e.oninput=()=>{const q=questions.find(x=>x.id===e.dataset.opt);q.options[+e.dataset.j].text=e.value;updateHealth();});document.querySelectorAll('[data-answer]').forEach(e=>e.onchange=()=>{questions.find(x=>x.id===e.dataset.answer).answer=e.value;updateHealth();});document.querySelectorAll('[data-delete]').forEach(b=>b.onclick=()=>{questions=questions.filter(q=>q.id!==b.dataset.delete);renderParsers();updateHealth();});document.querySelectorAll('[data-up]').forEach(b=>b.onclick=()=>moveQuestion(b.dataset.up,-1));document.querySelectorAll('[data-down]').forEach(b=>b.onclick=()=>moveQuestion(b.dataset.down,1));}
-function parseOrSave(pid){const p=parsers.find(x=>x.id===pid);if(p.editorOpen){p.editorOpen=false;renderParsers();updateHealth();message(`${p.subject||'Subject'} questions saved ✅`);return;}if(!norm(p.subject))return message('Subject Name enter చేయండి.','err');if(!norm(p.raw)&&!parserQuestions(pid).length)return message('Questions paste box empty ga undi.','err');if(norm(p.raw)){const result=parseQuestionsDetailed(p.raw,p.subject);const parsed=(result.questions||[]).map(q=>({...deepQuestion(q,p.subject),parserId:pid}));if(!parsed.length)return message('Questions detect కాలేదు. Number + A/B/C/D format check చేయండి.','err');questions=questions.filter(q=>q.parserId!==pid).concat(parsed);}p.editorOpen=true;renderParsers();updateHealth();message(`${parserQuestions(pid).length} questions parsed ✅`);}
+function parseOrSave(pid){const p=parsers.find(x=>x.id===pid);if(p.editorOpen){p.editorOpen=false;renderParsers();updateHealth();message(`${p.subject||'Subject'} questions saved ✅`);return;}if(!norm(p.subject))return message('Subject Name enter చేయండి.','err');if(!norm(p.raw)&&!parserQuestions(pid).length)return message('Questions paste box empty ga undi.','err');if(norm(p.raw)){if(typeof parseQuestionsDetailed!=='function')return message('Parser ఇంకా load అవుతోంది. 2 seconds తర్వాత మళ్లీ press చేయండి.','warn');const result=parseQuestionsDetailed(p.raw,p.subject);const parsed=(result.questions||[]).map(q=>({...deepQuestion(q,p.subject),parserId:pid}));if(!parsed.length)return message('Questions detect కాలేదు. Number + A/B/C/D format check చేయండి.','err');questions=questions.filter(q=>q.parserId!==pid).concat(parsed);}p.editorOpen=true;renderParsers();updateHealth();message(`${parserQuestions(pid).length} questions parsed ✅`);}
 function clearParser(pid){questions=questions.filter(q=>q.parserId!==pid);const p=parsers.find(x=>x.id===pid);p.raw='';p.editorOpen=false;renderParsers();updateHealth();message('Parser cleared.','warn');}
 function addBlankQuestion(pid){const p=parsers.find(x=>x.id===pid);questions.push({...deepQuestion(blankQuestion?.(p.subject||'General')||{},p.subject||'General'),parserId:pid});p.editorOpen=true;renderParsers();updateHealth();setTimeout(()=>document.querySelector(`[data-editor="${pid}"]`)?.scrollIntoView({behavior:'smooth'}),50);}
 function removeParser(pid){if(!confirm('Ee subject parser and its questions remove cheyyala?'))return;questions=questions.filter(q=>q.parserId!==pid);parsers=parsers.filter(p=>p.id!==pid);renderParsers();updateHealth();}
@@ -23,18 +29,21 @@ function updateHealth(){const issues=[];questions.forEach((q,i)=>{const p=issues
 function openIssue(id){const q=questions.find(x=>x.id===id),p=parsers.find(x=>x.id===q.parserId);p.editorOpen=true;renderParsers();$('issueList').hidden=true;setTimeout(()=>document.getElementById(`question-${id}`)?.scrollIntoView({behavior:'smooth',block:'center'}),100);}
 document.querySelector('[data-health="issues"]').onclick=()=>{const h=updateHealth();$('issueList').hidden=!$('issueList').hidden;if(!h.issues.length)message('Issue questions levu ✅');};
 $('addParserBtn').onclick=()=>addParser();
-async function loadMaster(){try{$('instituteId').innerHTML='<option value="">Loading institutes…</option>';const [is,bs]=await Promise.all([getDocs(collection(db,'institutes')),getDocs(collection(db,'batches'))]);institutes=is.docs.map(d=>({id:d.id,...d.data()}));batches=bs.docs.map(d=>({id:d.id,...d.data()}));$('instituteId').innerHTML='<option value="">Select Institute</option>'+institutes.map(x=>`<option value="${x.id}">${esc(x.name||x.instituteName||x.id)}</option>`).join('');if(!institutes.length){$('instituteId').innerHTML='<option value="">No institutes found</option>';message('Institute list empty. Master Data lo institute add చేయండి.','warn');}}catch(e){$('instituteId').innerHTML='<option value="">Tap to retry institutes</option>';message('Institutes load కాలేదు: '+e.message,'err');}}
+async function loadMaster(){if(!db||!getDocs||!collection){$('instituteId').innerHTML='<option value="">Firebase loading…</option>';return;}try{$('instituteId').innerHTML='<option value="">Loading institutes…</option>';const [is,bs]=await Promise.all([getDocs(collection(db,'institutes')),getDocs(collection(db,'batches'))]);institutes=is.docs.map(d=>({id:d.id,...d.data()}));batches=bs.docs.map(d=>({id:d.id,...d.data()}));$('instituteId').innerHTML='<option value="">Select Institute</option>'+institutes.map(x=>`<option value="${x.id}">${esc(x.name||x.instituteName||x.id)}</option>`).join('');if(!institutes.length){$('instituteId').innerHTML='<option value="">No institutes found</option>';message('Institute list empty. Master Data lo institute add చేయండి.','warn');}}catch(e){$('instituteId').innerHTML='<option value="">Tap to retry institutes</option>';message('Institutes load కాలేదు: '+e.message,'err');}}
 
 $('instituteId').addEventListener('pointerdown',()=>{
   if($('instituteId').options[0]?.textContent.includes('retry')) loadMasterWithRetry();
 });
 $('instituteId').onchange=()=>{const id=$('instituteId').value;const list=batches.filter(b=>String(b.instituteId||'')===id);$('batchId').innerHTML='<option value="">Select Batch</option>'+list.map(x=>`<option value="${x.id}">${esc(x.name||x.batchName||x.id)}</option>`).join('');students=[];$('activeStudents').value=0;$('studentLoadNote').textContent='Batch select చేస్తే active students load అవుతారు.';};
 $('batchId').onchange=async()=>{students=[];const iid=$('instituteId').value,bid=$('batchId').value;if(!bid)return;try{const snap=await getDocs(collection(db,'studentMaster'));snap.forEach(d=>{const s={id:d.id,...d.data()},status=String(s.status||'active').toLowerCase();if(String(s.batchId||'')===bid&&(!s.instituteId||String(s.instituteId)===iid)&&s.active!==false&&!['hold','inactive','deleted'].includes(status))students.push(s);});$('activeStudents').value=students.length;$('studentLoadNote').textContent=`${students.length} active students loaded ✅`;message(`${students.length} active students loaded.`);}catch(e){$('studentLoadNote').textContent='Active students load failed.';message('Active students load కాలేదు: '+e.message,'err');}};
-async function loadQuestionBank(){const snap=await getDocs(collection(db,'questionBank'));bankQuestions=snap.docs.map(d=>deepQuestion({id:d.id,...d.data()}));}
+async function loadQuestionBank(){if(!db||!getDocs||!collection)throw new Error('Firebase ఇంకా load కాలేదు.');const snap=await getDocs(collection(db,'questionBank'));bankQuestions=snap.docs.map(d=>deepQuestion({id:d.id,...d.data()}));}
 function bankHierarchy(){const tree={};bankQuestions.forEach(q=>{const s=q.subject||'General',c=q.className||'No Class',l=q.lesson||'No Lesson';tree[s]??={};tree[s][c]??={};tree[s][c][l]??=[];tree[s][c][l].push(q);});return tree;}
 async function openBank(pid){activeBankParserId=pid;try{if(!bankQuestions.length)await loadQuestionBank();selectedBankPath={subject:'',className:'',lesson:''};renderBankTree();$('bankQuestions').innerHTML='<div class="neNote">Subject, Class, Lesson select చేయండి.</div>';$('bankModal').hidden=false;}catch(e){message('Question Bank load కాలేదు: '+e.message,'err');}}
 function renderBankTree(){const tree=bankHierarchy();$('bankTree').innerHTML=Object.keys(tree).sort().map(s=>`<details><summary>${esc(s)}</summary>${Object.keys(tree[s]).sort().map(c=>`<details><summary>${esc(c)}</summary>${Object.keys(tree[s][c]).sort().map(l=>`<button class="bankLesson" data-bs="${esc(s)}" data-bc="${esc(c)}" data-bl="${esc(l)}">${esc(l)} <span>${tree[s][c][l].length}</span></button>`).join('')}</details>`).join('')}</details>`).join('')||'<div class="neNote">Question Bank empty.</div>';document.querySelectorAll('.bankLesson').forEach(b=>b.onclick=()=>{selectedBankPath={subject:b.dataset.bs,className:b.dataset.bc,lesson:b.dataset.bl};renderBankQuestions();});}
-function renderBankQuestions(){const arr=bankQuestions.filter(q=>(q.subject||'General')===selectedBankPath.subject&&(q.className||'No Class')===selectedBankPath.className&&(q.lesson||'No Lesson')===selectedBankPath.lesson);$('bankQuestions').innerHTML=`<h3>${esc(selectedBankPath.subject)} → ${esc(selectedBankPath.className)} → ${esc(selectedBankPath.lesson)}</h3>${arr.map((q,i)=>`<label class="bankQuestionPick"><input type="checkbox" class="bankCheck" value="${q.id}"><span><b>${i+1}. ${esc(q.question)}</b><small>${q.options.map(o=>`${o.key}) ${esc(o.text)}`).join(' · ')}</small></span></label>`).join('')||'<div class="neNote">Questions levu.</div>';}
+function renderBankQuestions(){
+  const arr=bankQuestions.filter(q=>(q.subject||'General')===selectedBankPath.subject&&(q.className||'No Class')===selectedBankPath.className&&(q.lesson||'No Lesson')===selectedBankPath.lesson);
+  $('bankQuestions').innerHTML=`<h3>${esc(selectedBankPath.subject)} → ${esc(selectedBankPath.className)} → ${esc(selectedBankPath.lesson)}</h3>${arr.map((q,i)=>`<label class="bankQuestionPick"><input type="checkbox" class="bankCheck" value="${q.id}"><span><b>${i+1}. ${esc(q.question)}</b><small>${q.options.map(o=>`${o.key}) ${esc(o.text)}`).join(' · ')}</small></span></label>`).join('')||'<div class="neNote">Questions levu.</div>'}`;
+}
 $('selectAllBank').onclick=()=>document.querySelectorAll('.bankCheck').forEach(x=>x.checked=true);$('clearBankSelection').onclick=()=>document.querySelectorAll('.bankCheck').forEach(x=>x.checked=false);$('addSelectedBank').onclick=()=>{const ids=[...document.querySelectorAll('.bankCheck:checked')].map(x=>x.value);if(!ids.length)return message('Question Bank lo questions select చేయండి.','err');const p=parsers.find(x=>x.id===activeBankParserId);const picked=bankQuestions.filter(q=>ids.includes(q.id)).map(q=>({...deepQuestion(q,p.subject||q.subject),subject:p.subject||q.subject,parserId:p.id,id:uid('q')}));questions.push(...picked);p.editorOpen=true;renderParsers();updateHealth();$('bankModal').hidden=true;message(`${picked.length} Question Bank questions added ✅`);};$('closeBank').onclick=()=>{$('bankModal').hidden=true;};
 function renderPreview(){const q=questions[previewIndex];$('previewExamTitle').textContent=norm($('examId').value)||'Student Exam Preview';$('previewMeta').textContent=`${previewIndex+1} / ${questions.length} · ${q.subject}`;$('previewNav').innerHTML=questions.map((_,i)=>`<button class="${i===previewIndex?'cur':''}" data-p="${i}">${i+1}</button>`).join('');$('previewQuestion').innerHTML=`<h3>${previewIndex+1}. ${esc(q.question).replace(/\n/g,'<br>')}</h3>${q.options.map(o=>`<label class="optionCard"><input type="radio" name="studentAnswer"><b>${o.key}</b><span>${esc(o.text)}</span></label>`).join('')}<div class="neActions"><button id="prevQ" class="gray">Previous</button><button id="nextQ" class="green">Save & Next</button></div>`;document.querySelectorAll('[data-p]').forEach(b=>b.onclick=()=>{previewIndex=+b.dataset.p;renderPreview();});$('prevQ').onclick=()=>{if(previewIndex>0){previewIndex--;renderPreview();}};$('nextQ').onclick=()=>{if(previewIndex<questions.length-1){previewIndex++;renderPreview();}};}
 $('previewBtn').onclick=()=>{if(!updateHealth().ready)return;previewIndex=0;$('previewModal').hidden=false;renderPreview();};$('closePreview').onclick=()=>{$('previewModal').hidden=true;};
@@ -50,19 +59,38 @@ initialiseNewExamUI();
 
 let masterLoaded=false;
 async function loadMasterWithRetry(){
-  if(masterLoaded) return;
+  if(masterLoaded || !db) return;
   await loadMaster();
   masterLoaded=institutes.length>0;
-  if(!masterLoaded){
-    setTimeout(()=>{ if(auth.currentUser) loadMasterWithRetry(); },1500);
+  if(!masterLoaded && auth?.currentUser){
+    setTimeout(loadMasterWithRetry,1500);
   }
 }
 
-onAuthStateChanged(auth,u=>{
-  if(!u){ location.href='login.html'; return; }
-  loadMasterWithRetry();
-});
+async function bootDependencies(){
+  // Parser is independent from Firebase; load it first for immediate exam work.
+  try{
+    const parserModule=await import('./parser.js?v=20260729-new-exam-v5-merged');
+    parseQuestionsDetailed=parserModule.parseQuestionsDetailed;
+    blankQuestion=parserModule.blankQuestion;
+  }catch(error){
+    console.error('Parser module failed:',error);
+    message('Parser file load కాలేదు: '+error.message,'err');
+  }
 
-// In some Android WebViews auth.currentUser is restored before the listener callback.
-// This fallback prevents the institute dropdown from staying on “Loading institutes…”.
-setTimeout(()=>{ if(auth.currentUser) loadMasterWithRetry(); },500);
+  try{
+    const appModule=await import('./app.js?v=20260729-new-exam-v5-merged');
+    ({db,auth,onAuthStateChanged,collection,getDocs,getDoc,doc,setDoc,writeBatch,serverTimestamp}=appModule);
+    onAuthStateChanged(auth,user=>{
+      if(!user){ location.href='login.html'; return; }
+      loadMasterWithRetry();
+    });
+    if(auth.currentUser) loadMasterWithRetry();
+  }catch(error){
+    console.error('Firebase module failed:',error);
+    $('instituteId').innerHTML='<option value="">Firebase connection failed</option>';
+    message('Firebase connection load కాలేదు: '+error.message,'err');
+  }
+}
+
+bootDependencies();
