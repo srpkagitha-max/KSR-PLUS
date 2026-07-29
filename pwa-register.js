@@ -1,4 +1,4 @@
-const KSR_PWA_VERSION = '2026.07.29-new-exam-v4-standalone';
+const KSR_PWA_VERSION = '2026.07.29-parser-gap-fix';
 
 if ('serviceWorker' in navigator) {
   let reloadingForNewWorker = false;

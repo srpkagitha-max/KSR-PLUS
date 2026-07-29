@@ -324,13 +324,12 @@ function splitQuestionBlocks(lines, defaultSubject = 'General') {
     const isExpectedNumericOption = Boolean(option && option.scheme === 'number' && option.key === expected && progress < 4);
     const currentHasAnswer = current.some(isExplicitAnswerLine) || current.some(hasCorrectAnswerMarker);
     const currentIsCompleteQuestion = progress >= 4 || (progress >= 2 && currentHasAnswer);
-    const firstStart = questionStart(current[0]);
-    const sequentialNumber = !firstStart || !start || start.number === firstStart.number + 1;
-
     // 1), 2), 3), 4) are numeric options until the current MCQ has four options.
-    // A numeric statement inside a completed question must not become a new
-    // question unless its number continues the actual question sequence.
-    if (isExpectedNumericOption || !currentIsCompleteQuestion || !sequentialNumber) {
+    // Once A-D (or another complete answer pattern) has finished, ANY later
+    // numbered line starts a new question. Question numbers are allowed to
+    // have gaps (for example 4 -> 6 or 10 -> 12). Older builds required strict
+    // sequential numbering and merged all questions after a missing number.
+    if (isExpectedNumericOption || !currentIsCompleteQuestion) {
       current.push(line);
       continue;
     }

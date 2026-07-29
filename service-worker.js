@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ksr-plus-new-exam-v4-standalone';
+const CACHE_NAME = 'ksr-plus-parser-gap-fix';
 const APP_SHELL = [
   './offline.html', './manifest.json', './icon-192.png', './icon-512.png'
 ];
