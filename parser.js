@@ -310,11 +310,13 @@ function splitQuestionBlocks(lines, defaultSubject = 'General') {
     const isExpectedNumericOption = Boolean(option && option.scheme === 'number' && option.key === expected && progress < 4);
     const currentHasAnswer = current.some(isExplicitAnswerLine) || current.some(hasCorrectAnswerMarker);
     const currentIsCompleteQuestion = progress >= 4 || (progress >= 2 && currentHasAnswer);
+    const firstStart = questionStart(current[0]);
+    const sequentialNumber = !firstStart || !start || start.number === firstStart.number + 1;
 
     // 1), 2), 3), 4) are numeric options until the current MCQ has four options.
-    // Roman statements never match questionStart. A numbered list before options
-    // remains part of the current question.
-    if (isExpectedNumericOption || !currentIsCompleteQuestion) {
+    // A numeric statement inside a completed question must not become a new
+    // question unless its number continues the actual question sequence.
+    if (isExpectedNumericOption || !currentIsCompleteQuestion || !sequentialNumber) {
       current.push(line);
       continue;
     }
@@ -372,18 +374,31 @@ function parseBlock(lines, index, defaultSubject) {
     }
   }
 
-  const questionText = compactQuestion(questionLines);
+  const questionText = cleanDanglingDelimiters(compactQuestion(questionLines));
   return {
     id: `q${Date.now()}_${index}`,
+    sourceNumber: first?.number || index + 1,
     subject: defaultSubject || 'General',
     question: questionText,
     type: detectQuestionType(questionText),
-    options: ['A', 'B', 'C', 'D'].map(key => ({ key, text: options[key] || '' })),
+    options: ['A', 'B', 'C', 'D'].map(key => ({ key, text: cleanDanglingDelimiters(options[key] || '') })),
     answer: answer || '',
     marks: 1
   };
 }
 
+
+
+function cleanDanglingDelimiters(value) {
+  let text = String(value || '').trim();
+  const pairs = [['(', ')'], ['[', ']'], ['{', '}']];
+  for (const [open, close] of pairs) {
+    const opens = [...text].filter(ch => ch === open).length;
+    const closes = [...text].filter(ch => ch === close).length;
+    if (opens > closes && text.endsWith(open)) text = text.slice(0, -1).trim();
+  }
+  return text.replace(/\s{2,}/g, ' ').trim();
+}
 
 function detectQuestionType(questionText) {
   const text = String(questionText || '');

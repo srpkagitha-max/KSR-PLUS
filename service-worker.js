@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ksr-plus-sprint8-parser-controller-v1';
+const CACHE_NAME = 'ksr-plus-sprint9-linecheck-v1';
 const APP_SHELL = [
   './offline.html', './manifest.json', './icon-192.png', './icon-512.png'
 ];

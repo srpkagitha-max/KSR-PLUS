@@ -20,7 +20,7 @@ import {
   esc
 } from './app.js?v=20260727-create-exam-core-v4';
 
-import * as Parser from './parser.js?v=20260729-sprint3-resolver-v1';
+import * as Parser from './parser.js?v=20260729-sprint9-linecheck-v1';
 
 // Parser compatibility layer: using a namespace import prevents the whole Create Exam
 // module from failing when GitHub temporarily serves an older parser.js that lacks one

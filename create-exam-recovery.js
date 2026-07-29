@@ -1,5 +1,5 @@
-import { auth, db, onAuthStateChanged, collection, getDocs, $, esc } from './app.js';
-import { parseQuestionsDetailed } from './parser.js';
+import { auth, db, onAuthStateChanged, collection, getDocs, $, esc } from './app.js?v=20260729-sprint9-linecheck-v1';
+import { parseQuestionsDetailed } from './parser.js?v=20260729-sprint9-linecheck-v1';
 
 const state = { institutes: [], batches: [] };
 const notify = (message, type = 'err') => {
