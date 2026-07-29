@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ksr-plus-create-exam-removed-v1';
+const CACHE_NAME = 'ksr-plus-new-exam-v3-fix';
 const APP_SHELL = [
   './offline.html', './manifest.json', './icon-192.png', './icon-512.png'
 ];

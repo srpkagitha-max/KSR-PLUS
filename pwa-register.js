@@ -1,4 +1,4 @@
-const KSR_PWA_VERSION = '2026.07.29-ksr-plus-stage1';
+const KSR_PWA_VERSION = '2026.07.29-new-exam-v3-fix';
 
 if ('serviceWorker' in navigator) {
   let reloadingForNewWorker = false;

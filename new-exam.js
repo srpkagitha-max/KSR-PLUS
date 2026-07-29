@@ -23,7 +23,11 @@ function updateHealth(){const issues=[];questions.forEach((q,i)=>{const p=issues
 function openIssue(id){const q=questions.find(x=>x.id===id),p=parsers.find(x=>x.id===q.parserId);p.editorOpen=true;renderParsers();$('issueList').hidden=true;setTimeout(()=>document.getElementById(`question-${id}`)?.scrollIntoView({behavior:'smooth',block:'center'}),100);}
 document.querySelector('[data-health="issues"]').onclick=()=>{const h=updateHealth();$('issueList').hidden=!$('issueList').hidden;if(!h.issues.length)message('Issue questions levu ✅');};
 $('addParserBtn').onclick=()=>addParser();
-async function loadMaster(){try{const [is,bs]=await Promise.all([getDocs(collection(db,'institutes')),getDocs(collection(db,'batches'))]);institutes=is.docs.map(d=>({id:d.id,...d.data()}));batches=bs.docs.map(d=>({id:d.id,...d.data()}));$('instituteId').innerHTML='<option value="">Select Institute</option>'+institutes.map(x=>`<option value="${x.id}">${esc(x.name||x.instituteName||x.id)}</option>`).join('');}catch(e){message('Institutes load కాలేదు: '+e.message,'err');}}
+async function loadMaster(){try{$('instituteId').innerHTML='<option value="">Loading institutes…</option>';const [is,bs]=await Promise.all([getDocs(collection(db,'institutes')),getDocs(collection(db,'batches'))]);institutes=is.docs.map(d=>({id:d.id,...d.data()}));batches=bs.docs.map(d=>({id:d.id,...d.data()}));$('instituteId').innerHTML='<option value="">Select Institute</option>'+institutes.map(x=>`<option value="${x.id}">${esc(x.name||x.instituteName||x.id)}</option>`).join('');if(!institutes.length){$('instituteId').innerHTML='<option value="">No institutes found</option>';message('Institute list empty. Master Data lo institute add చేయండి.','warn');}}catch(e){$('instituteId').innerHTML='<option value="">Tap to retry institutes</option>';message('Institutes load కాలేదు: '+e.message,'err');}}
+
+$('instituteId').addEventListener('pointerdown',()=>{
+  if($('instituteId').options[0]?.textContent.includes('retry')) loadMasterWithRetry();
+});
 $('instituteId').onchange=()=>{const id=$('instituteId').value;const list=batches.filter(b=>String(b.instituteId||'')===id);$('batchId').innerHTML='<option value="">Select Batch</option>'+list.map(x=>`<option value="${x.id}">${esc(x.name||x.batchName||x.id)}</option>`).join('');students=[];$('activeStudents').value=0;$('studentLoadNote').textContent='Batch select చేస్తే active students load అవుతారు.';};
 $('batchId').onchange=async()=>{students=[];const iid=$('instituteId').value,bid=$('batchId').value;if(!bid)return;try{const snap=await getDocs(collection(db,'studentMaster'));snap.forEach(d=>{const s={id:d.id,...d.data()},status=String(s.status||'active').toLowerCase();if(String(s.batchId||'')===bid&&(!s.instituteId||String(s.instituteId)===iid)&&s.active!==false&&!['hold','inactive','deleted'].includes(status))students.push(s);});$('activeStudents').value=students.length;$('studentLoadNote').textContent=`${students.length} active students loaded ✅`;message(`${students.length} active students loaded.`);}catch(e){$('studentLoadNote').textContent='Active students load failed.';message('Active students load కాలేదు: '+e.message,'err');}};
 async function loadQuestionBank(){const snap=await getDocs(collection(db,'questionBank'));bankQuestions=snap.docs.map(d=>deepQuestion({id:d.id,...d.data()}));}
@@ -36,4 +40,29 @@ function renderPreview(){const q=questions[previewIndex];$('previewExamTitle').t
 $('previewBtn').onclick=()=>{if(!updateHealth().ready)return;previewIndex=0;$('previewModal').hidden=false;renderPreview();};$('closePreview').onclick=()=>{$('previewModal').hidden=true;};
 function randomCode(){return String(Math.floor(100000+Math.random()*900000));}async function uniqueCode(used){for(let i=0;i<50;i++){const c=randomCode();if(used.has(c))continue;const s=await getDoc(doc(db,'studentAccess',c));if(!s.exists()){used.add(c);return c;}}throw new Error('Unique code generate కాలేదు.');}
 $('saveBtn').onclick=async()=>{try{const health=updateHealth();if(!health.ready)throw new Error('Question issues fix చేయండి.');const instituteId=$('instituteId').value,batchId=$('batchId').value,examId=norm($('examId').value),start=$('startTime').value,end=$('endTime').value,loginBefore=$('loginBefore').value;if(!instituteId||!batchId||!examId||!start||!end||!loginBefore)throw new Error('Basic Informationలో అన్ని required fields fill చేయండి.');if(new Date(end)<=new Date(start))throw new Error('End Exam time Start Exam తర్వాత ఉండాలి.');const existing=await getDoc(doc(db,'exams',examId));if(existing.exists())throw new Error('ఈ Exam ID ఇప్పటికే ఉంది. కొత్త Exam ID ఇవ్వండి.');$('saveBtn').disabled=true;$('saveProgress').innerHTML='<div class="neNote">Saving exam and generating codes…</div>';const institute=institutes.find(x=>x.id===instituteId)||{},batch=batches.find(x=>x.id===batchId)||{};const cleanQuestions=questions.map(({parserId,...q})=>q);const subjectSummary=[...new Set(cleanQuestions.map(q=>q.subject))].map(subject=>({subject,total:cleanQuestions.filter(q=>q.subject===subject).length}));await setDoc(doc(db,'exams',examId),{examId,examCode:examId,title:examId,instituteId,instituteName:institute.name||institute.instituteName||'',batchId,batchName:batch.name||batch.batchName||'',startTime:new Date(start).toISOString(),endTime:new Date(end).toISOString(),loginBefore:new Date(loginBefore).toISOString(),questionCount:cleanQuestions.length,subjectCount:subjectSummary.length,subjectSummary,shuffleQuestions:$('subjectShuffle').value==='yes',questionShuffle:$('subjectShuffle').value==='yes'?'subject':'none',shuffleOptions:$('optionShuffle').value==='yes',status:'active',createdBy:auth.currentUser?.email||'admin',createdAt:serverTimestamp(),updatedAt:serverTimestamp(),saveState:'ready'},{merge:false});await setDoc(doc(db,'examQuestions',examId),{examId,questions:cleanQuestions,questionCount:cleanQuestions.length,subjectSummary,updatedAt:serverTimestamp()});const assignments=students.map(s=>({s,backup:false}));const backup=Math.max(0,Number($('backupCodes').value||0));for(let i=0;i<backup;i++)assignments.push({s:{name:`Backup-${i+1}`},backup:true});const used=new Set(),rows=[];for(const item of assignments){const code=await uniqueCode(used);rows.push({code,name:item.backup?'Backup Code':(item.s.name||item.s.studentName||''),roll:item.s.roll||item.s.rollNo||'',backup:item.backup,studentId:item.s.id||''});}for(let i=0;i<rows.length;i+=450){const wb=writeBatch(db);rows.slice(i,i+450).forEach(r=>wb.set(doc(db,'studentAccess',r.code),{examId,examPublicId:examId,instituteId,batchId,batchName:batch.name||batch.batchName||'',studentMasterId:r.studentId,assignedName:r.backup?'':r.name,studentName:'',roll:r.roll,code:r.code,status:'unused',isBackup:r.backup,createdAt:serverTimestamp()}));await wb.commit();}$('generatedCodes').innerHTML=`<div class="codesResult"><h3>${rows.length} Codes Generated ✅</h3>${rows.map((r,i)=>`<div><b>${i+1}. ${esc(r.name||'Student')}</b><span>${r.code}</span></div>`).join('')}</div>`;$('saveProgress').innerHTML='<div class="neHealthStatus ready">Exam saved successfully ✅</div>';message(`Exam saved. ${rows.length} codes generated ✅`);}catch(e){message(e.message,'err');$('saveProgress').innerHTML='';$('saveBtn').disabled=!updateHealth().ready;}};
-onAuthStateChanged(auth,u=>{if(!u)location.href='login.html';else{loadMaster();addParser();updateHealth();}});
+// Render the parser immediately. Firebase authentication can take a moment on mobile,
+// and the old flow kept the complete page frozen until that callback fired.
+function initialiseNewExamUI(){
+  if(!parsers.length) addParser();
+  updateHealth();
+}
+initialiseNewExamUI();
+
+let masterLoaded=false;
+async function loadMasterWithRetry(){
+  if(masterLoaded) return;
+  await loadMaster();
+  masterLoaded=institutes.length>0;
+  if(!masterLoaded){
+    setTimeout(()=>{ if(auth.currentUser) loadMasterWithRetry(); },1500);
+  }
+}
+
+onAuthStateChanged(auth,u=>{
+  if(!u){ location.href='login.html'; return; }
+  loadMasterWithRetry();
+});
+
+// In some Android WebViews auth.currentUser is restored before the listener callback.
+// This fallback prevents the institute dropdown from staying on “Loading institutes…”.
+setTimeout(()=>{ if(auth.currentUser) loadMasterWithRetry(); },500);
