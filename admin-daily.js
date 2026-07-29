@@ -20,7 +20,7 @@ import {
   esc
 } from './app.js?v=20260727-create-exam-core-v4';
 
-import * as Parser from './parser.js?v=20260729-sprint10-telugu-parser-v1';
+import * as Parser from './parser.js?v=20260729-sprint12-ordered-exam-builder-v1';
 
 // Parser compatibility layer: using a namespace import prevents the whole Create Exam
 // module from failing when GitHub temporarily serves an older parser.js that lacks one
@@ -89,6 +89,8 @@ let subjects = [{ name: 'General', rawBits: '', questions: [] }];
 let activeSubjectIndex = 0;
 let previewQuestions = [];
 let previewIndex = 0;
+let previewApproved = false;
+let previewApprovedFingerprint = '';
 let lastCodes = [];
 let lastExam = null;
 let institutes = [];
@@ -1288,7 +1290,7 @@ function applyCurrentHealthFix(questionIndex) {
 
   activeHealthIssue = null;
   renderEditor();
-  flash(`Q${Number(target.questionIndex) + 1} issue solved ✅ Health auto rechecked.`);
+  flash(`Q${Number(target.questionIndex) + 1} issue solved ✅ List నుంచి తొలగించబడింది.`);
   if (nextIssue) setTimeout(() => openHealthIssue(nextIssue), 180);
 }
 
@@ -1364,7 +1366,7 @@ function renderHealth() {
     const statusText = list.length && !totalSubjectIssues ? 'Ready' : totalSubjectIssues ? 'Needs Fix' : 'Empty';
     subjectHealthRows.push(`<tr class="subjectHealthTableRow ${totalSubjectIssues ? 'hasIssues' : list.length ? 'ready' : 'empty'}" data-subject-health-index="${subjectIndex}" tabindex="0" role="button" aria-label="Open ${esc(subject.name || `Subject ${subjectIndex + 1}`)} questions">
       <td><b>${esc(subject.name || `Subject ${subjectIndex + 1}`)}</b></td>
-      <td>${list.length}</td><td>${list.length}</td><td>${missingAnswers}</td><td>${totalSubjectIssues}</td>
+      <td>${list.length}</td><td>${subjectValid}</td><td>${missingAnswers}</td><td>${invalid}</td>
       <td><span class="subjectTableStatus ${totalSubjectIssues ? 'needsFix' : list.length ? 'ready' : 'empty'}">${statusText}</span></td>
     </tr>`);
     const issueButtons = subjectIssues.map(issue => `<button type="button" class="issueJump" data-subject-index="${subjectIndex}" data-question-index="${issue.questionIndex}" data-issue-type="${esc(issue.type)}" data-issue-severity="${esc(issue.severity)}">Q${issue.questionIndex + 1} · ${esc(issue.text.split(':').slice(1).join(':').trim())}</button>`).join('');
@@ -1385,8 +1387,8 @@ function renderHealth() {
   const totalSubjectIssues = issues.length;
   const finalSubjectHealthTable = `<section class="finalSubjectHealthSection">
     <div class="examHealthTitleRow"><div><b>Final Subject Health Table</b><small>Subject row paina press chesthe aa subject questions maatrame open avutayi.</small></div><span class="healthStatusBadge ${issues.length ? 'critical' : allQuestions.length ? 'healthy' : 'empty'}">${issues.length ? 'NEEDS FIX' : allQuestions.length ? 'READY' : 'EMPTY'}</span></div>
-    <div class="subjectHealthTableWrap"><table class="subjectHealthTable"><thead><tr><th>Subject</th><th>Questions</th><th>Marks</th><th>Missing Answers</th><th>Issues</th><th>Status</th></tr></thead>
-    <tbody>${subjectHealthRows.join('')}<tr class="subjectHealthTotalRow"><td><b>Total</b></td><td><b>${allQuestions.length}</b></td><td><b>${allQuestions.length}</b></td><td><b>${totalMissingAnswers}</b></td><td><b>${totalSubjectIssues}</b></td><td><span class="subjectTableStatus ${issues.length ? 'needsFix' : allQuestions.length ? 'ready' : 'empty'}">${issues.length ? 'Needs Fix' : allQuestions.length ? 'Ready' : 'Empty'}</span></td></tr></tbody></table></div>
+    <div class="subjectHealthTableWrap"><table class="subjectHealthTable"><thead><tr><th>Subject</th><th>Total Questions</th><th>OK Questions</th><th>Missing Answers</th><th>Issue Questions</th><th>Status</th></tr></thead>
+    <tbody>${subjectHealthRows.join('')}<tr class="subjectHealthTotalRow"><td><b>Total</b></td><td><b>${allQuestions.length}</b></td><td><b>${valid}</b></td><td><b>${totalMissingAnswers}</b></td><td><b>${invalidQuestionKeys.size}</b></td><td><span class="subjectTableStatus ${issues.length ? 'needsFix' : allQuestions.length ? 'ready' : 'empty'}">${issues.length ? 'Needs Fix' : allQuestions.length ? 'Ready' : 'Empty'}</span></td></tr></tbody></table></div>
   </section>`;
 
   const filters = ['all', 'critical', 'warning', 'missingAnswer', 'missingOptions', 'emptyQuestion', 'brokenQuestion', 'duplicate'];
@@ -1436,10 +1438,10 @@ function renderHealth() {
   </section>` : '';
   $('health').innerHTML = `
     ${importSummaryHtml}
-    <div class="examHealthTitleRow"><b>Sprint 5 · Final Exam Validation</b><span class="healthStatusBadge ${overallHealth.status.toLowerCase()}">${overallHealth.status}</span></div>
+    <div class="examHealthTitleRow"><b>Questions Health Card</b><span class="healthStatusBadge ${overallHealth.status.toLowerCase()}">${overallHealth.status}</span></div>
     ${sprint2MetricsHtml}
-    <div class="examHealthTitleRow healthDetailTitle"><div><b>Issue Explorer</b><small>Issue Questions button press చేసి question numbers open చేయండి.</small></div><button type="button" id="toggleIssueQuestionsBtn" class="orange issueQuestionsMainBtn">Issue Questions (${uniqueIssueQuestions.length})</button></div>
-    <section id="issueQuestionNumberPanel" class="issueQuestionNumberPanel" ${uniqueIssueQuestions.length ? 'hidden' : ''}>
+    <div class="examHealthTitleRow healthDetailTitle"><div><b>Issue Explorer</b><small>Issue Questions button press చేసి question numbers open చేయండి.</small></div><button type="button" id="toggleIssueQuestionsBtn" class="orange issueQuestionsMainBtn ${uniqueIssueQuestions.length ? 'hasIssues' : 'allClear'}">${uniqueIssueQuestions.length ? `Issue Questions (${uniqueIssueQuestions.length})` : 'All Questions Clear ✓'}</button></div>
+    <section id="issueQuestionNumberPanel" class="issueQuestionNumberPanel ${uniqueIssueQuestions.length ? 'hasIssues' : 'allClear'}" hidden>
       ${uniqueIssueQuestions.length ? uniqueIssueQuestions.map(issue => `<button type="button" class="issueNumberBtn ${issue.severity}" data-issue-number-subject="${issue.subjectIndex}" data-issue-number-question="${issue.questionIndex}" data-issue-number-type="${esc(issue.type)}" data-issue-number-severity="${esc(issue.severity)}">${esc(subjects[issue.subjectIndex]?.name || `Subject ${issue.subjectIndex + 1}`)} · Q${issue.questionIndex + 1}</button>`).join('') : '<div class="healthReadyMessage">✅ Issue questions levu.</div>'}
     </section>
     <section class="healthScoreHero ${overallHealth.status.toLowerCase()}">
@@ -1536,9 +1538,31 @@ function renderHealth() {
       });
     };
   });
-  $('saveGenerateBtn').disabled = false;
+  updateFinalActionState();
 }
 
+function currentExamReviewFingerprint() {
+  return JSON.stringify(getAllQuestions().map(q => ({
+    subject: q.subject || '', question: q.question || '', answer: q.answer || '',
+    options: (q.options || []).map(o => `${o.key || ''}:${o.text || ''}`)
+  })));
+}
+
+function invalidatePreviewApproval() {
+  previewApproved = false;
+  previewApprovedFingerprint = '';
+  updateFinalActionState();
+}
+
+function updateFinalActionState() {
+  const button = $('saveGenerateBtn');
+  const hint = $('previewApprovalHint');
+  const validApproval = previewApproved && previewApprovedFingerprint === currentExamReviewFingerprint();
+  if (button) button.disabled = !validApproval;
+  if (hint) hint.textContent = validApproval
+    ? '✅ Student exam review approved. ఇప్పుడు Save Exam + Generate Codes నొక్కండి.'
+    : 'Student review complete చేసి Approve Exam నొక్కిన తర్వాత Save button active అవుతుంది.';
+}
 
 function renderEditor() {
   $('questionEditor').dataset.open = '1';
@@ -1631,6 +1655,7 @@ function renderEditor() {
 }
 
 function sync() {
+  const beforeReviewFingerprint = currentExamReviewFingerprint();
   document.querySelectorAll('.editQ').forEach(element => {
     questions[Number(element.dataset.i)].question =
       element.value;
@@ -1650,6 +1675,7 @@ function sync() {
   commitCurrentSubject();
   renderSubjectTabs();
   scheduleDraftSave();
+  if (previewApproved && beforeReviewFingerprint !== currentExamReviewFingerprint()) invalidatePreviewApproval();
 }
 
 function bindEditor() {
@@ -1730,11 +1756,20 @@ $('previewBtn')?.addEventListener('click', () => {
   previewIndex = 0;
 
   $('previewCard').hidden = false;
-
+  previewApproved = previewApproved && previewApprovedFingerprint === currentExamReviewFingerprint();
   renderPreview();
+  updatePreviewApprovalUI();
 
   location.hash = 'previewCard';
 });
+
+function updatePreviewApprovalUI() {
+  const status = $('previewApprovalStatus');
+  const valid = previewApproved && previewApprovedFingerprint === currentExamReviewFingerprint();
+  if (status) { status.textContent = valid ? '✅ Exam Review Approved' : 'Not approved'; status.className = valid ? 'approved' : ''; }
+  if ($('approvePreviewBtn')) $('approvePreviewBtn').textContent = valid ? 'Approved ✓' : 'Approve Exam Review';
+  updateFinalActionState();
+}
 
 function renderPreview() {
   const question = previewQuestions[previewIndex];
@@ -1827,7 +1862,21 @@ function renderPreview() {
       renderPreview();
     }
   });
+  updatePreviewApprovalUI();
 }
+
+$('approvePreviewBtn')?.addEventListener('click', () => {
+  sync();
+  const all = getAllQuestions();
+  const issues = validateQuestionList(all);
+  if (!all.length) return show('Review approve చేయడానికి questions లేవు.', 'err');
+  if (issues.length) { renderHealth(); return show('Issue questions clear చేసిన తర్వాత review approve చేయండి.', 'err'); }
+  previewApproved = true;
+  previewApprovedFingerprint = currentExamReviewFingerprint();
+  updatePreviewApprovalUI();
+  show('Student Exam Review approved ✅ ఇప్పుడు Save Exam + Generate Codes నొక్కండి.', 'ok');
+});
+$('closePreviewBtn')?.addEventListener('click', () => { if ($('previewCard')) $('previewCard').hidden = true; location.hash = 'examPanel'; });
 
 function randomSixDigitCode() {
   return String(
@@ -2424,6 +2473,9 @@ function closeFinalValidation() {
 }
 
 function openFinalValidation() {
+  if (!(previewApproved && previewApprovedFingerprint === currentExamReviewFingerprint())) {
+    return show('ముందుగా Student Exam Review చూసి Approve Exam Review నొక్కండి.', 'err');
+  }
   const data = getFinalValidationSnapshot();
   if ($('finalValidationContent')) $('finalValidationContent').hidden = false;
   if ($('finalSaveProgress')) { $('finalSaveProgress').hidden = true; $('finalSaveProgress').innerHTML = ''; }

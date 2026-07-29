@@ -1,7 +1,7 @@
 <!doctype html><html lang="te"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
-<meta http-equiv="Expires" content="0"><title>KSR ➕ Admin</title><link rel="stylesheet" href="style.css?v=20260729-sprint11-issue-preview-save-v1">
+<meta http-equiv="Expires" content="0"><title>KSR ➕ Admin</title><link rel="stylesheet" href="style.css?v=20260729-sprint12-ordered-exam-builder-v1">
 <link rel="manifest" href="./manifest.json">
 <meta name="theme-color" content="#064a86">
 <meta name="mobile-web-app-capable" content="yes">
@@ -51,10 +51,10 @@
 <div class="multiSubjectBuilder">
   <div class="subjectBuilderHead">
     <div>
-      <h3>Multi Subject Exam Builder</h3>
-      <p class="small">Prathi subject ni separate ga parse chesi save cheyyandi. Subject order automatic ga preserve avutundi.</p>
+      <h3>+ Parser</h3>
+      <p class="small">Subject name enter chesi bits paste చేయండి. Parse చేసిన తర్వాత subjectను bankకు save చేసి next subject add చేయండి.</p>
     </div>
-    <button type="button" class="gray" id="addSubjectBtn">+ Add Parser</button>
+    <button type="button" class="gray" id="addSubjectBtn">+ Add Subject Parser</button>
   </div>
   <div id="subjectTabs" class="subjectTabs"></div>
   <div class="grid two subjectMetaGrid">
@@ -62,19 +62,19 @@
     <div><label>Current Subject Questions</label><input id="subjectQuestionCount" value="0" readonly></div>
   </div>
   <input id="qbSubject" type="hidden" value="General">
-  <label>Paste Bits</label>
+  <label>Parse Box</label>
   <textarea id="rawBits" class="bits-box" placeholder="1. Question text\nA) Option 1\nB) Option 2 ●\nC) Option 3\nD) Option 4"></textarea>
   <div class="action-row">
-    <button id="parseBtn">Parse Questions</button>
+    <button id="parseBtn">Questions Parsed</button>
     <button type="button" class="gray" id="saveSubjectBtn">Save Subject to Bank</button>
     <button id="addQuestionBtn" type="button" class="gray">+ Add Question</button>
     <button class="gray" id="openBankBtn" type="button">📚 Add from Bank</button>
-    <button class="gray" id="saveToBankBtn" type="button">💾 Save All Subjects to Bank</button>
+    
   </div>
 </div>
 <div id="health" class="health-box parserHealthDashboard"></div>
 <div id="questionEditor"></div>
-<div class="action-row finalExamActions"><button class="orange" id="previewBtn">Student Exam Preview</button><button class="green" id="saveGenerateBtn">Review Final Exam</button></div>
+<div class="finalExamOrder"><button class="orange" id="previewBtn">1. Student Exam Review</button><button class="green" id="saveGenerateBtn" disabled>2. Save Exam + Generate Codes</button><small id="previewApprovalHint">Student review complete చేసి Approve Exam నొక్కిన తర్వాత Save button active అవుతుంది.</small></div>
 <div id="finalValidationModal" class="finalValidationModal" hidden>
   <div class="finalValidationBackdrop" data-close-final-validation></div>
   <section class="finalValidationDialog" role="dialog" aria-modal="true" aria-labelledby="finalValidationTitle">
@@ -86,7 +86,7 @@
 </div>
 <div id="bankPicker" class="card bankPicker" hidden><div class="qhead"><div><h3>Smart Add from Question Bank</h3><p class="small">Subject, class, lesson లేదా keyword batti questions select cheyyandi.</p></div><button type="button" class="gray" id="closeBankBtn">Close</button></div><div class="grid four"><input id="bankSearchText" placeholder="Keyword / Question ID"><input id="bankSubjectFilter" placeholder="Subject"><input id="bankClassFilter" placeholder="Class / Category"><input id="bankLessonFilter" placeholder="Lesson / Topic"></div><div class="action-row"><button type="button" id="loadBankBtn">Load Questions</button><button type="button" class="gray" id="selectAllBankBtn">Select All</button><button type="button" class="gray" id="clearBankSelectionBtn">Clear</button><button type="button" class="green" id="addSelectedBankBtn">Add Selected to Exam</button></div><div id="bankPickerStats" class="health-box"></div><div id="bankPickerList"><p class="small">Filters enter chesi Load Questions nokkandi.</p></div></div>
 </div>
-<div class="card" id="previewCard" hidden><h2>Student Exam Preview</h2><p class="small">ఇది preview మాత్రమే. Result save కాదు.</p><div class="preview-exam"><div class="preview-head"><b id="previewTitle">Exam Preview</b><span id="previewTimer">00:00</span></div><div id="previewContent"></div><div id="previewNav" class="palette"></div></div></div>
+<div class="card" id="previewCard" hidden><div class="studentPreviewTop"><div><h2>Student Exam Review</h2><p class="small">Student screenలో exam ఎలా కనిపిస్తుందో అలాగే review చేయండి.</p></div><button type="button" class="gray" id="closePreviewBtn">Close Review</button></div><div class="preview-exam"><div class="preview-head"><b id="previewTitle">Exam Preview</b><span id="previewTimer">00:00</span></div><div id="previewContent"></div><div id="previewNav" class="palette"></div><div class="previewApprovalBar"><button type="button" class="green" id="approvePreviewBtn">Approve Exam Review</button><span id="previewApprovalStatus">Not approved</span></div></div></div>
 </section>
 
 <section id="codesPanel" class="adminWorkPanel" hidden>
@@ -116,8 +116,8 @@
  document.querySelectorAll('.backHomeBtn').forEach(b=>b.addEventListener('click',()=>{panels.forEach(p=>p.hidden=true);home.hidden=false;window.scrollTo({top:0,behavior:'smooth'});}));
 })();
 </script>
-<script type="module" src="admin-daily.js?v=20260729-sprint11-issue-preview-save-v1"></script>
-<script type="module" src="parser-controller.js?v=20260729-sprint11-issue-preview-save-v1"></script>
-<script type="module" src="create-exam-recovery.js?v=20260729-sprint11-issue-preview-save-v1"></script>
-<script src="./pwa-register.js?v=20260729-sprint11-issue-preview-save-v1"></script>
+<script type="module" src="admin-daily.js?v=20260729-sprint12-ordered-exam-builder-v1"></script>
+<script type="module" src="parser-controller.js?v=20260729-sprint12-ordered-exam-builder-v1"></script>
+<script type="module" src="create-exam-recovery.js?v=20260729-sprint12-ordered-exam-builder-v1"></script>
+<script src="./pwa-register.js?v=20260729-sprint12-ordered-exam-builder-v1"></script>
 </body></html>

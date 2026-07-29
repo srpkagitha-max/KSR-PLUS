@@ -1,4 +1,4 @@
-import { parseQuestionsDetailed, analyzeQuestionHealth } from './parser.js?v=20260729-sprint10-telugu-parser-v1';
+import { parseQuestionsDetailed, analyzeQuestionHealth } from './parser.js?v=20260729-sprint12-ordered-exam-builder-v1';
 
 const $ = id => document.getElementById(id);
 const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));

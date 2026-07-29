@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ksr-plus-sprint11-issue-preview-save-v1';
+const CACHE_NAME = 'ksr-plus-sprint12-ordered-exam-builder-v1';
 const APP_SHELL = [
   './offline.html', './manifest.json', './icon-192.png', './icon-512.png'
 ];
