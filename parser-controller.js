@@ -57,7 +57,18 @@ function parseStandalone(){
   renderAll();if($('parseBtn'))$('parseBtn').textContent='Questions Parsed ✅';notify(`${standaloneQuestions.length} questions detected ✅`);
 }
 function bind(){
-  const btn=$('parseBtn');if(btn&&!btn.dataset.s9Bound){btn.dataset.s9Bound='1';btn.addEventListener('click',e=>{if(window.__KSR_CREATE_EXAM_CORE__?.parseRawQuestions){e.preventDefault();window.__KSR_CREATE_EXAM_CORE__.parseRawQuestions();return;}e.preventDefault();parseStandalone();});}
-  const add=$('addSubjectBtn');if(add&&!add.dataset.s9Bound){add.dataset.s9Bound='1';add.addEventListener('click',()=>{if(window.__KSR_CREATE_EXAM_CORE__?.addNewSubjectParser)return;standaloneQuestions=[];if($('subjectName'))$('subjectName').value='';if($('rawBits'))$('rawBits').value='';renderAll();});}
+  // Main Create Exam controller is the single source of truth.
+  // Standalone controller must never overwrite its health dashboard/editor.
+  if (window.__KSR_CREATE_EXAM_CORE__) return;
+  const btn=$('parseBtn');
+  if(btn&&!btn.dataset.s9Bound){
+    btn.dataset.s9Bound='1';
+    btn.addEventListener('click',e=>{e.preventDefault();parseStandalone();});
+  }
+  const add=$('addSubjectBtn');
+  if(add&&!add.dataset.s9Bound){
+    add.dataset.s9Bound='1';
+    add.addEventListener('click',()=>{standaloneQuestions=[];if($('subjectName'))$('subjectName').value='';if($('rawBits'))$('rawBits').value='';renderAll();});
+  }
 }
 document.readyState==='loading'?document.addEventListener('DOMContentLoaded',bind,{once:true}):bind();setTimeout(bind,800);

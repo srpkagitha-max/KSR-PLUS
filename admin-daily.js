@@ -1391,6 +1391,15 @@ function renderHealth() {
 
   const filters = ['all', 'critical', 'warning', 'missingAnswer', 'missingOptions', 'emptyQuestion', 'brokenQuestion', 'duplicate'];
   const filteredIssues = issues.filter(issue => healthIssueFilter === 'all' || issue.severity === healthIssueFilter || issue.type === healthIssueFilter);
+  const uniqueIssueQuestions = [];
+  const uniqueIssueKeys = new Set();
+  filteredIssues.forEach(issue => {
+    const key = `${issue.subjectIndex}:${issue.questionIndex}`;
+    if (!uniqueIssueKeys.has(key)) {
+      uniqueIssueKeys.add(key);
+      uniqueIssueQuestions.push(issue);
+    }
+  });
   const healthFilterHtml = filters.map(filter => {
     const count = filter === 'all' ? issues.length : issues.filter(issue => issue.severity === filter || issue.type === filter).length;
     return `<button type="button" class="healthFilterBtn ${healthIssueFilter === filter ? 'active' : ''}" data-health-filter="${filter}">${healthIssueLabel(filter)} <b>${count}</b></button>`;
@@ -1429,7 +1438,10 @@ function renderHealth() {
     ${importSummaryHtml}
     <div class="examHealthTitleRow"><b>Sprint 5 · Final Exam Validation</b><span class="healthStatusBadge ${overallHealth.status.toLowerCase()}">${overallHealth.status}</span></div>
     ${sprint2MetricsHtml}
-    <div class="examHealthTitleRow healthDetailTitle"><b>Issue Explorer</b><span class="healthStatusBadge ${overallHealth.status.toLowerCase()}">${overallHealth.status}</span></div>
+    <div class="examHealthTitleRow healthDetailTitle"><div><b>Issue Explorer</b><small>Issue Questions button press చేసి question numbers open చేయండి.</small></div><button type="button" id="toggleIssueQuestionsBtn" class="orange issueQuestionsMainBtn">Issue Questions (${uniqueIssueQuestions.length})</button></div>
+    <section id="issueQuestionNumberPanel" class="issueQuestionNumberPanel" ${uniqueIssueQuestions.length ? 'hidden' : ''}>
+      ${uniqueIssueQuestions.length ? uniqueIssueQuestions.map(issue => `<button type="button" class="issueNumberBtn ${issue.severity}" data-issue-number-subject="${issue.subjectIndex}" data-issue-number-question="${issue.questionIndex}" data-issue-number-type="${esc(issue.type)}" data-issue-number-severity="${esc(issue.severity)}">${esc(subjects[issue.subjectIndex]?.name || `Subject ${issue.subjectIndex + 1}`)} · Q${issue.questionIndex + 1}</button>`).join('') : '<div class="healthReadyMessage">✅ Issue questions levu.</div>'}
+    </section>
     <section class="healthScoreHero ${overallHealth.status.toLowerCase()}">
       <div class="healthScoreRing" style="--health-score:${overallHealth.healthScore}"><strong>${overallHealth.healthScore}%</strong><span>Health Score</span></div>
       <div class="healthHeroStats">
@@ -1468,6 +1480,20 @@ function renderHealth() {
 
   document.querySelectorAll('[data-health-filter]').forEach(button => {
     button.onclick = () => { healthIssueFilter = button.dataset.healthFilter || 'all'; renderHealth(); };
+  });
+  $('toggleIssueQuestionsBtn')?.addEventListener('click', () => {
+    const panel = $('issueQuestionNumberPanel');
+    if (!panel) return;
+    panel.hidden = !panel.hidden;
+    if (!panel.hidden) panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  });
+  document.querySelectorAll('.issueNumberBtn').forEach(button => {
+    button.onclick = () => openHealthIssue({
+      subjectIndex: Number(button.dataset.issueNumberSubject),
+      questionIndex: Number(button.dataset.issueNumberQuestion),
+      type: button.dataset.issueNumberType || 'all',
+      severity: button.dataset.issueNumberSeverity || 'warning'
+    });
   });
   $('safeAutoFixBtn')?.addEventListener('click', applySafeHealthFixes);
   $('recheckHealthBtn')?.addEventListener('click', () => { sync(); renderHealth(); flash('Parser health rechecked ✅'); });
@@ -1510,7 +1536,7 @@ function renderHealth() {
       });
     };
   });
-  $('saveGenerateBtn').disabled = !allQuestions.length || Boolean(issues.length);
+  $('saveGenerateBtn').disabled = false;
 }
 
 
@@ -1522,7 +1548,7 @@ function renderEditor() {
       (question, index) => `
         <div class="qcard ${activeHealthIssue && activeHealthIssue.subjectIndex === activeSubjectIndex && activeHealthIssue.questionIndex === index ? 'sprint3ActiveIssue' : ''}">
           <div class="qhead">
-            <b>Q${index + 1}</b>
+            <button type="button" class="qNumberResolveBtn" data-i="${index}" title="Issue fix అయిన తర్వాత press చేయండి">Q${index + 1}</button>
 
             <div>
               <button
@@ -1638,6 +1664,16 @@ function bindEditor() {
 
   document.querySelectorAll('.applyHealthFix').forEach(button => {
     button.onclick = () => applyCurrentHealthFix(Number(button.dataset.i));
+  });
+  document.querySelectorAll('.qNumberResolveBtn').forEach(button => {
+    button.onclick = () => {
+      const index = Number(button.dataset.i);
+      if (activeHealthIssue && activeHealthIssue.subjectIndex === activeSubjectIndex && activeHealthIssue.questionIndex === index) {
+        applyCurrentHealthFix(index);
+      } else {
+        document.querySelectorAll('.qcard')[index]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    };
   });
 
   document.querySelectorAll('.deleteQ').forEach(button => {
