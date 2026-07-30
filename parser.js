@@ -349,6 +349,10 @@ function parseBlock(lines, index, defaultSubject) {
   const options = { A: '', B: '', C: '', D: '' };
   let answer = '';
   let currentOption = null;
+  // Matching questions use (1), (2), (3)... as list items, not answer options.
+  // Preserve them in question text until the real A-D options begin.
+  const matchingMode = body.some(x => /(?:జాబితా|List|Column)\s*[-–—:]?\s*(?:I|II|1|2)\b/iu.test(String(x||'')));
+  let letterOptionsStarted = false;
 
   for (const original of body) {
     let line = String(original || '').trim();
@@ -362,6 +366,12 @@ function parseBlock(lines, index, defaultSubject) {
     }
 
     const option = optionKeyFromLine(line);
+    if (option && option.scheme === 'letter') letterOptionsStarted = true;
+    if (option && matchingMode && option.scheme === 'number' && !letterOptionsStarted) {
+      currentOption = null;
+      questionLines.push(formatQuestionLine(stripMarks(line)));
+      continue;
+    }
     if (option) {
       let text = option.text.trim();
       const prefixLength = Math.max(0, line.indexOf(option.text));

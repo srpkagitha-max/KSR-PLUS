@@ -520,3 +520,6 @@ body.examSaveLocked .finalValidationActions button,body.examSaveLocked #saveGene
 .premiumMatch .matchCell:nth-child(4n+3),.premiumMatch .matchCell:nth-child(4n+4){background:#f1f6fa}
 .matchingIntro{font-weight:750;margin-bottom:8px}.matchingTail{font-weight:800;color:#0b3b75;margin-top:10px}
 @media(max-width:640px){.premiumMatch{font-size:14px}.premiumMatch .matchHead,.premiumMatch .matchCell{padding:9px 8px}.matchingIntro,.matchingTail{font-size:15px}}
+
+/* V11 editor controls */
+.editBtn{background:#0b63ce!important;color:#fff!important}.editFocus{outline:3px solid #0b63ce!important;box-shadow:0 0 0 5px rgba(11,99,206,.15)!important}.premiumMatch{grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important}.premiumMatch .matchCell{white-space:pre-wrap;overflow-wrap:anywhere}.premiumMatch .matchHead{background:#0b2f55!important;color:#fff!important;font-weight:900}
