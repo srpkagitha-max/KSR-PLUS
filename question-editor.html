@@ -1,0 +1,12 @@
+<!doctype html><html lang="te"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"><meta http-equiv="Pragma" content="no-cache"><meta http-equiv="Expires" content="0">
+<title>KSR ➕ Question Editor</title><link rel="stylesheet" href="style.css?v=20260730-question-editor-v12"><link rel="manifest" href="./manifest.json"><meta name="theme-color" content="#064a86"></head>
+<body class="adminHubBody"><div class="adminTopbar"><div><h1>KSR ➕ Question Editor</h1><p>Search Exam → Find Question → Edit & Save</p></div><div class="adminTopActions"><a class="btn gray" href="dashboard.html">← Main Features</a><button class="gray" id="logout">Logout</button></div></div>
+<div class="wrap questionEditorPage"><div id="msg"></div>
+<section class="card qeSearchCard"><h2>Question Editor</h2><p class="small">Exam ID ద్వారా search చేయండి లేదా All Exams open చేయండి.</p>
+<div class="qeTopActions"><input id="examSearchInput" placeholder="Exam ID / Exam Code"><button id="searchExamBtn">Search Exam</button><button id="allExamsBtn" class="gray">All Exams</button></div></section>
+<section id="allExamsSection" class="card" hidden><div class="qeSectionHead"><div><h2>All Exams</h2><p id="allExamsCount" class="small"></p></div><button id="closeAllExams" class="gray">Close</button></div><div id="allExamsList" class="qeExamList"></div></section>
+<section id="examEditorSection" class="card" hidden><div class="qeSectionHead"><div><h2 id="loadedExamTitle">Exam Questions</h2><p id="loadedExamMeta" class="small"></p></div><button id="reloadExamBtn" class="gray">Reload</button></div>
+<div class="qeQuestionSearch"><input id="questionSearchInput" placeholder="Question number or question text"><button id="searchQuestionBtn">Search Question</button><button id="clearQuestionSearch" class="gray">Show All</button></div>
+<div id="questionSummary" class="qeSummary"></div><div id="questionsList" class="qeQuestionsList"></div></section>
+</div><script type="module" src="question-editor.js?v=20260730-question-editor-v12"></script><script src="./pwa-register.js?v=20260730-question-editor-v12"></script></body></html>

@@ -13,7 +13,7 @@ if ('serviceWorker' in navigator) {
   window.addEventListener('load', async () => {
     try {
       const registration = await navigator.serviceWorker.register(
-        `./service-worker.js?v=20260729-matching-pdf-v11&v=${encodeURIComponent(KSR_PWA_VERSION)}`,
+        `./service-worker.js?v=20260730-matching-pdf-v11&v=${encodeURIComponent(KSR_PWA_VERSION)}`,
         { scope: './', updateViaCache: 'none' }
       );
 
